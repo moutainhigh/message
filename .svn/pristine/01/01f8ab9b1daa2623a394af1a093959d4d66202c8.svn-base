@@ -1,0 +1,38 @@
+package com.zhongan.icare.message.push.service;
+
+import com.zhongan.icare.share.message.dto.PushSendLogDTO;
+import org.springframework.cloud.netflix.feign.FeignClient;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+
+@FeignClient(name = "icare-open")
+@RequestMapping(path = "/int/v1/push/send/log")
+public interface IPushSendLogService {
+    @RequestMapping(path = "insert",method={RequestMethod.POST})
+    long insert(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "insertSelective",method={RequestMethod.POST})
+    long insertSelective(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "updateByPrimaryKey",method={RequestMethod.POST})
+    int updateByPrimaryKey(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "deleteByPrimaryKey",method={RequestMethod.GET})
+    int deleteByPrimaryKey(@RequestParam("id") long id);
+
+    @RequestMapping(path = "updateByPrimaryKeySelective",method={RequestMethod.POST})
+    int updateByPrimaryKeySelective(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "selectByCond",method={RequestMethod.POST})
+    List<PushSendLogDTO> selectByCond(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "countByCond",method={RequestMethod.POST})
+    int countByCond(@RequestBody PushSendLogDTO dto);
+
+    @RequestMapping(path = "selectByPrimaryKey",method={RequestMethod.GET})
+    PushSendLogDTO selectByPrimaryKey(@RequestParam("id") long id);
+}

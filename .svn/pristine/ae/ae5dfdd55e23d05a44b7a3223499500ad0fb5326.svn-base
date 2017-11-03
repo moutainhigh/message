@@ -1,0 +1,151 @@
+package com.zhongan.icare.message.im.service.impl;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.share.enm.YesOrNo;
+import com.zhongan.icare.common.dao.mybatis.BatchSqlSessionTemplate;
+import com.zhongan.icare.message.im.service.IImLogService;
+import com.zhongan.icare.message.im.web.dto.ImLogDTO;
+import com.zhongan.icare.message.push.dao.ImLogDAO;
+import com.zhongan.icare.message.push.dao.dataobject.ImLogDO;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationListener;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@RestController
+class ImLogServiceImpl implements IImLogService, ApplicationListener<ApplicationReadyEvent> {
+    @Resource
+    ImLogDAO dao;
+    @Resource
+    private BatchSqlSessionTemplate batchSqlSessionTemplate;
+
+    private LinkedBlockingQueue<ImLogDTO> queue = new LinkedBlockingQueue<>(10000);
+
+
+    public static ImLogDTO to(ImLogDO d) {
+        ImLogDTO t = new ImLogDTO();
+        t.setId(d.getId());
+        t.setCustId(d.getCustId());
+        t.setCommand(d.getCommand());
+        t.setClientIp(d.getClientIp());
+        t.setOptPlatform(d.getOptPlatform());
+        if (StringUtils.isNotEmpty(d.getIsDeleted()))
+            t.setIsDeleted(com.zhongan.health.common.utils.bean.enm.EnumUtils.byValue(d.getIsDeleted(), com.zhongan.health.common.share.enm.YesOrNo.class));
+        t.setModifier(d.getModifier());
+        t.setCreator(d.getCreator());
+        t.setGmtCreated(d.getGmtCreated());
+        t.setGmtModified(d.getGmtModified());
+        t.setContent(d.getContent());
+        return t;
+    }
+
+    public static ImLogDO to(ImLogDTO t) {
+        ImLogDO d = new ImLogDO();
+        d.setId(t.getId());
+        d.setCustId(t.getCustId());
+        d.setCommand(t.getCommand());
+        d.setClientIp(t.getClientIp());
+        d.setOptPlatform(t.getOptPlatform());
+        if (t.getIsDeleted() != null)
+            d.setIsDeleted(t.getIsDeleted().getValue());
+        d.setModifier(t.getModifier());
+        d.setCreator(t.getCreator());
+        d.setGmtCreated(t.getGmtCreated());
+        d.setGmtModified(t.getGmtModified());
+        d.setContent(t.getContent());
+        return d;
+    }
+
+    public static List<ImLogDTO> to(List<ImLogDO> dataobjects) {
+        if (dataobjects == null) return null;
+        List<ImLogDTO> dtos = Lists.newArrayListWithCapacity(dataobjects.size());
+        for (ImLogDO dataobject : dataobjects) {
+            dtos.add(to(dataobject));
+        }
+        return dtos;
+    }
+
+    public long create(@RequestBody ImLogDTO dto) {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        try {
+            queue.offer(dto, 30 * 1000, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return 1;
+    }
+
+    public List<ImLogDTO> list(@RequestBody ImLogDTO dto) {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        ImLogDO dataobject = to(dto);
+        dataobject.setIsDeleted(YesOrNo.NO.getValue());
+        List<ImLogDO> dataobjects = dao.selectByCond(dataobject);
+        return to(dataobjects);
+    }
+
+    public int count(@RequestBody ImLogDTO dto) {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        ImLogDO dataobject = to(dto);
+        dataobject.setIsDeleted(YesOrNo.NO.getValue());
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public void createBatch(List<ImLogDTO> imLogDTOList) {
+        if (CollectionUtils.isEmpty(imLogDTOList))
+            return;
+        List<ImLogDO> imLogDOList = new ArrayList<>(imLogDTOList.size());
+        for (ImLogDTO dto : imLogDTOList) {
+            ImLogDO imLogDO = new ImLogDO();
+            imLogDO = com.zhongan.health.common.utils.BeanUtils.simpleDOAndBOConvert(dto, ImLogDO.class);
+            Long id = imLogDO.getId();
+            if (id == null) {
+                id = SequenceFactory.nextId(ImLogDO.class);
+                imLogDO.setId(id);
+            }
+            CommonFieldUtils.populate(imLogDO, true);
+            imLogDOList.add(imLogDO);
+        }
+        if (CollectionUtils.isNotEmpty(imLogDOList)) {
+            batchSqlSessionTemplate.insert("com.zhongan.icare.message.push.dao.ImLogDAO.insert", imLogDOList);
+        }
+    }
+
+    ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+
+    @Override
+    public void onApplicationEvent(ApplicationReadyEvent event) {
+        Runnable task = () -> {
+            List<ImLogDTO> imLogDTOList = new LinkedList<>();
+            while (!queue.isEmpty()) {
+                ImLogDTO dto = queue.poll();
+                if (dto != null) {
+                    imLogDTOList.add(dto);
+                }
+                if (imLogDTOList.size() > 100) {
+                    createBatch(imLogDTOList);
+                    imLogDTOList.clear();
+                }
+            }
+            createBatch(imLogDTOList);
+        };
+        executorService.scheduleWithFixedDelay(task, 1, 1, TimeUnit.SECONDS);
+    }
+}

@@ -1,0 +1,133 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+  client:
+    serviceUrl:
+      defaultZone: http://11494-iyunbao-ifuli-icare-api.test.za.net/eureka/
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: g9DA8kvREgWPiGsKDUGtXfuF
+    secretKey: l5CxtkG8wnZrUQnkCESIdw25XSZ1kZSz
+  ios: 
+    apiKey: KebFUsAiZZtKVRhif0FEgpAw
+    secretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    newApiKey: KebFUsAiZZtKVRhif0FEgpAw
+    newSecretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    status: 1
+
+customer:
+  token:
+    privateKey: MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAgdQaGiqK3OdXeDsVz+pa35xyfPw1/Az6CDgUL31zydDDdAmKbeBK/+umiTm1HkqWKMsHp6GPXfn5mBI0ukuygwIDAQABAkA5hSt7ZFXZwXVzg1oKoB5a7AmdbnDMl0M/2Pi4gbCHPSF3khjz1/oKHxxFtrImMKmYmRejdf4Djouy0+P0ZXfhAiEAvLTfS1H2DSD/HSXiS9xar1/lwPmDdtZPDAb6WsAY5W0CIQCwIDjytF06tqy35bslbqFdYAY/jSoJxl3gipKN+bExrwIhALpmb6sW6tVNIrLIGSCWKX3SXECiNxnL14kp22KJHg6BAiAGeVi+iyS2KMrWg6pKaPOjhAkWwvCdpV4EB/P1Jg1+XwIhAJKmmBa3rBV4MAB8W8EzSyyl736EIOQlQKTCtVOzrvDI
+
+cluster:
+  ips: 10.253.9.168;10.139.55.96;10.253.14.84;10.253.21.28;10.139.57.128;10.253.105.243; 10.253.107.30;10.253.105.192;10.253.24.86;10.253.24.60;10.139.50.127
+
+tddl: 
+  appname: ICARE_MESSAGE_TST_APP
+  groupname: ICARE_MESSAGE_TST_00_GROUP
+  path: /alidata1/admin/
+  
+verify: 
+  code: 
+    geetest: 
+      api_url: "http://api.geetest.com"
+      baseUrl: "http://api.geetest.com"
+      captcha_id: e14090c90e0b20d8464e1341611a9abd
+      expire_in_second: 120
+      private_key: 3bf21e90ab7c776ff2ca756864038a5d
+      version: "3.2.0"
+      
+sky:
+  star:
+    url: "http://10.139.36.106:3083/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+          
+za: 
+  icare: 
+    img: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+      publicEndpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/"
+      server: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/wujieshan-new"
+    message: 
+      email: 
+        valid: 
+          minute: 21600
+      push: 
+        server: "10.139.52.49:9092,10.139.52.57:9092,10.139.52.45:9092,192.168.13.78:8082"
+        producerId: "icare-customer-create"
+        producerIdNew: "icare-customer-create-new"
+        consumerId: "icare-message_test-create"
+        consumerIdNew: "icare-message_test-create-new"
+        topics: "icare-message"
+        sendToipcs: "KD-ICARE-MESSAGE-170222"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+      sms: 
+        individual: 
+          templateNo: SMS_16710057
+        valid: 
+          minute: 5
+        verify: 
+          templateNo: SMS_14250345
+    oss: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+    redis: 
+      configserver1: "typhon-test-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+      templateAllExpire: 3600
+      sentinelServers: "10.253.7.72:26379,10.253.7.72:26380,10.253.7.72:26381"
+    sec: 
+      org: 
+        enterprise: 
+          id: 3
+    static: 
+      downPath: /api/customer/v1/attachement/download
+      filePath: "https://staticdaily.zhongan.com/website/health/ifuli/upload/"
+      ftpHost: "10.253.4.128"
+      ftpPassword: Static123
+      ftpPort: 22
+      ftpStaticDomain: staticdaily.zhongan.com
+      ftpTimeOut: 60000
+      ftpUserName: static
+      staticPath: /www/website/health/ifuli/upload/
+jdbc:
+  initialSize: 1
+  maxActive: 8
+  minIdle: 1
+  maxWait: 5000
+  testOnBorrow: true
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 120000
+  validationQuery: "select 1 from dual"
+  poolPreparedStatements: false
+  maxPoolPreparedStatementPerConnectionSize: 20
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30
+icare:
+  cor:
+    maxAge: 3600
+    allowed:
+      origin: "http://localhost:8080,http://localhost:8081,https://t-admin.zuifuli.io,https://t-api.zuifuli.io,https://test.zuifuli.io,https://t-hr.zuifuli.io,https://t-m.zuifuli.io,https://t-mall.zuifuli.io,https://t-open.zuifuli.io,https://t-api.zuifuli.io,http://t-admin.zuifuli.io,http://t-api.zuifuli.io,http://test.zuifuli.io,http://t-hr.zuifuli.io,http://t-m.zuifuli.io,http://t-mall.zuifuli.io,http://t-open.zuifuli.io,http://t-api.zuifuli.io,http://t-h5.zuifuli.io,https://t-h5.zuifuli.io"

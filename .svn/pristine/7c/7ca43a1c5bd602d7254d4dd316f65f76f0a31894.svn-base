@@ -1,0 +1,90 @@
+package com.zhongan.icare.message;
+
+import com.zhongan.icare.common.dao.DatasourceUtils;
+import com.zhongan.icare.common.web.filter.ClientFilter;
+import com.zhongan.icare.message.push.util.ThreadUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.embedded.FilterRegistrationBean;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
+import org.springframework.cloud.netflix.feign.EnableFeignClients;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.ImportResource;
+import org.springframework.core.env.Environment;
+
+import javax.sql.DataSource;
+import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableEurekaClient
+@ImportResource("classpath:beanRefContext.xml")
+@EnableFeignClients(clients = {com.zhongan.icare.share.customer.service.ICustomerQueryService.class,
+        com.zhongan.icare.share.customer.service.ICustomerService.class,
+        com.zhongan.icare.common.mq.handler.MatchJsonMessageHandler.class})
+@Configuration
+public class MessageApplication
+{
+    public static void main(String[] args)
+    {
+        SpringApplication application = new SpringApplication(MessageApplication.class);
+        application.run(args);
+    }
+
+    @Bean
+    public FilterRegistrationBean clientAuth(Environment env)
+    {
+        FilterRegistrationBean registration = new FilterRegistrationBean();
+        ClientFilter filter = new ClientFilter();
+        filter.setPrivateKeyBase64(env.getProperty("customer.token.privateKey"));
+        Set<String> noNeedLoginPaths = new HashSet<>();
+        noNeedLoginPaths.add("favicon.ico");
+        filter.setNoNeedLoginPaths(noNeedLoginPaths);
+        registration.setFilter(filter);
+        registration.addUrlPatterns("/*");
+        registration.setName("ClientInfoFilter");
+        registration.setOrder(1);
+        return registration;
+    }
+
+//    @Bean(name = "dataSource", initMethod = "init")
+//    @Autowired
+//    public DataSource createDataSource(Environment env)
+//    {
+//        TDataSource dataSource = new TDataSource();
+//        dataSource.setAppName(env.getProperty("tddl.appname"));
+//        dataSource.setDynamicRule(true);
+//        return dataSource;
+//    }
+
+    /**
+     * 修改成druid连接
+     *
+     * @param env
+     * @return
+     * @throws SQLException
+     */
+    @Bean(name = "dataSource", initMethod = "init")
+    @Autowired
+    public DataSource createDataSource(Environment env) throws SQLException
+    {
+        return DatasourceUtils.druidDataSource(env);
+    }
+
+    @Bean(name = "pool")
+    @Autowired
+    public ExecutorService createThreadPool(Environment env)
+    {
+        String corePoolSizeStr = env.getProperty("threadPool.corePoolSize");
+        Integer corePoolSize = com.zhongan.health.common.utils.StringUtils.isBlank(corePoolSizeStr) ? 0 : Integer.parseInt(corePoolSizeStr);
+        String maximumPoolSizeStr = env.getProperty("threadPool.maximumPoolSize");
+        Integer maximumPoolSize = com.zhongan.health.common.utils.StringUtils.isBlank(maximumPoolSizeStr) ? 0 : Integer.parseInt(maximumPoolSizeStr);
+        return ThreadUtils.loadThreadByParam(corePoolSize, maximumPoolSize, null);
+    }
+}

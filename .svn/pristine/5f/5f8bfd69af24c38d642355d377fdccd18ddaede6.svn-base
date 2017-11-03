@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+           http://www.springframework.org/schema/tx    http://www.springframework.org/schema/tx/spring-tx-2.5.xsd"
+	default-autowire="byName">
+	
+	<bean class="com.zhongan.health.common.utils.security.crypt.impl.AsymmetricCipher" id="tokenCipher" init-method="init">
+		<property name="keyAlgorithm" value="RSA"/>
+		<property name="algorithmWithPadding" value="RSA/ECB/OAEPWithSHA1AndMGF1Padding"/>
+		<property name="encryptBlockSize" value="117"/>
+		<property name="decryptBlockSize" value="128"/>
+		<property name="privateKeyBase64" value="${customer.token.privateKey}"/>
+		<property name="publicKeyBase64" value="${customer.token.publickKey}"/>
+	</bean>
+	
+	<bean class="com.zhongan.health.common.utils.security.crypt.impl.SymmetricCipher" init-method="init" id="senstiveCipher">
+		<property name="algorithm" value="AES"/>
+		<property name="seed" value="${customer.senstive.seed}"/>
+	</bean>
+	
+	<!--<bean class="com.zhongan.icare.customer.util.MessagePublisher" init-method="init" id="messagePublisher">-->
+		<!--<property name="accessKey" value="${push.ons.accessKey}"/>-->
+		<!--<property name="secretKey" value="${push.ons.secretKey}"/>-->
+		<!--<property name="onsAddr" value="${push.ons.onsAddr}"/>-->
+		<!--<property name="producerId" value="${push.ons.producerId}"/>-->
+		<!--<property name="topicId" value="${push.ons.topicId}"/>-->
+	<!--</bean>-->
+	
+
+	<bean class="com.zhongan.icare.common.util.ImageUtils">
+		<property name="endpoint"><value>${za.icare.img.server}</value></property>
+	</bean>
+
+	<bean id="velocityEngine" class="org.apache.velocity.app.VelocityEngine" init-method="init">
+
+	</bean>
+
+
+</beans>

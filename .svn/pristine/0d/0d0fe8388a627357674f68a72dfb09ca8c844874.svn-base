@@ -1,0 +1,122 @@
+package com.zhongan.icare.message.star.job;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.alibaba.common.lang.StringUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.icare.common.cache.redis.client.RedisUtils;
+import com.zhongan.icare.share.message.dto.SmsApplyDTO;
+import com.zhongan.icare.share.message.dto.SmsLogDTO;
+import com.zhongan.icare.share.message.dto.star.SMSDTO;
+import com.zhongan.icare.share.message.service.ISmsApplyService;
+import com.zhongan.icare.share.message.service.ISmsLogService;
+import com.zhongan.icare.share.message.service.star.IStarService;
+
+import lombok.extern.slf4j.Slf4j;
+
+/**
+
+ */
+@Slf4j
+@Component
+public class TaskSchedule {
+    @Resource
+    private IStarService        starService;
+    @Resource
+    private ISmsLogService      smsLogService;
+    @Resource
+    private ISmsApplyService    smsApplyService;
+    private static final String CACHE_SEND_SMS_KEY    = "icare-admin.sms.send.key";
+    private static final String CACHE_SEND_SMS_ID_KEY = "icare-admin.sms.send.key.id";
+
+    //    @Scheduled(cron = "${sms.send.cron}")
+    public void handleForSmsSendTask() {
+        try {
+            log.info("开始短信发送");
+            int lock = RedisUtils.tryLock(CACHE_SEND_SMS_KEY, 30 * 60);
+            if (lock != 0) {
+                log.info("任务已经被别的机器取走，退出任务");
+                return;
+            }
+            List<SmsLogDTO> list = smsLogService.selectNeedSendSmsLog(new SmsLogDTO());
+            for (SmsLogDTO smsLogDTO : list) {
+                SmsLogDTO update = new SmsLogDTO();
+                update.setId(smsLogDTO.getId());
+                try {
+                    SMSDTO sms = new SMSDTO();
+                    sms.setMobiles(smsLogDTO.getReceiverPhone());
+                    sms.setTemplateNo(smsLogDTO.getTemplateNo());
+                    SmsApplyDTO applyDto = new SmsApplyDTO();
+                    applyDto.setTemplateNo(smsLogDTO.getTemplateNo());
+                    List<SmsApplyDTO> applyList = smsApplyService.selectByCond(applyDto);
+                    String content = applyList.get(0).getContent();
+                    Map<String, Object> parameter = (Map<String, Object>) JSONObject.parse(smsLogDTO.getParam());
+                    if (StringUtil.isNotEmpty(extractMessage(content, parameter))) {
+                        log.error(smsLogDTO.getId() + "参数不全");
+                        throw new RuntimeException(smsLogDTO.getId() + "参数不全");
+                    }
+                    sms.setParameters(parameter);
+                    Integer inc = RedisUtils.incr(CACHE_SEND_SMS_ID_KEY + smsLogDTO.getId());
+                    if (inc == null) {
+                        log.error(smsLogDTO.getId() + "incr失败");
+                        throw new RuntimeException(smsLogDTO.getId() + "incr失败");
+                    }
+                    if (inc != 1) {
+                        log.error(smsLogDTO.getId() + "重复执行");
+                        throw new RuntimeException(smsLogDTO.getId() + "重复执行");
+                    }
+                    BaseResult<Void> rs = starService.sendSMS(sms);
+
+                    update.setResultCode(rs.getCode());
+                    update.setResultMessage(rs.getMessage());
+                    smsLogService.updateByPrimaryKeySelective(update);
+                } catch (Exception e) {
+                    log.warn("短信发送异常" + JSON.toJSONString(smsLogDTO), e);
+                    update.setResultCode("-1");
+                    update.setResultMessage(e.getMessage());
+                    smsLogService.updateByPrimaryKeySelective(update);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("短信发送异常", e);
+        } finally {
+            RedisUtils.releaseLock(CACHE_SEND_SMS_KEY);
+        }
+    }
+
+    /**
+     * 提取大括号中的内容
+     * 
+     * @param msg
+     * @return
+     */
+    public static String extractMessage(String msg, Map<String, Object> parameter) {
+        int start = 0;
+        int startFlag = 0;
+        int endFlag = 0;
+        for (int i = 0; i < msg.length(); i++) {
+            if (msg.charAt(i) == '{') {
+                startFlag++;
+                if (startFlag == endFlag + 1) {
+                    start = i;
+                }
+            } else if (msg.charAt(i) == '}') {
+                endFlag++;
+                if (endFlag == startFlag) {
+                    if (!parameter.containsKey(msg.substring(start + 1, i))) {
+                        return "参数不全";
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+}

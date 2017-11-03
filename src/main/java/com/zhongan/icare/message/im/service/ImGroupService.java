@@ -1,0 +1,23 @@
+package com.zhongan.icare.message.im.service;
+
+import com.zhongan.icare.message.im.bean.ImGroup;
+
+import java.util.List;
+
+/**
+ * Created by za-raozhikun on 2017/10/20.
+ */
+public interface ImGroupService {
+
+    boolean addImGroup(ImGroup imGroup);
+
+    boolean addMember(String groupId, String... accountIds);
+
+    void deleteMember(String groupId, String... accountIds);
+
+    List<String> queryJoinedGroup(String accountId);
+
+    void sendMessage(String groupId, String fromAccount, String message);
+
+    void sendMessage(String groupId, String message);
+}

@@ -1,0 +1,218 @@
+package com.zhongan.icare.message.push.web;
+
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.icare.common.client.ClientInfo;
+import com.zhongan.icare.message.push.enums.MsgStatusEnum;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogMultiDTO;
+import com.zhongan.icare.share.message.dto.ThirdMessageDTO;
+import com.zhongan.icare.share.message.service.IPushRequestLogService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+
+@RestController
+@RequestMapping(value = "/v2/pushMessage")
+@Slf4j
+public class PushRequestLogController extends MessageBaseController
+{
+
+    @Resource
+    private IPushRequestLogService pushRequestLogService;
+
+    /**
+     * 给第三方会员发信息
+     *
+     * @param thirdMessageDTO
+     * @return
+     */
+    @RequestMapping(value = "toThird", method = RequestMethod.POST)
+    public BaseResult<Void> toThird(@RequestBody ThirdMessageDTO thirdMessageDTO)
+    {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("thirdMessageDTO: {}", JSONObject.toJSONString(thirdMessageDTO));
+        try
+        {
+
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null)
+            {
+                return result;
+            }
+
+            // 检查参数
+            if (!checkParam4Thrid(result, thirdMessageDTO))
+            {
+                return result;
+            }
+
+            // 发送信息
+            sendMessage2Third(thirdMessageDTO);
+
+        } catch (Exception e)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_TO_THIRD_EXCEPTION,
+                    JSONObject.toJSONString(thirdMessageDTO));
+            log.error("", e);
+        }
+        result.setCodeSuccess();
+        return result;
+    }
+
+    /**
+     * 给单个人发信息
+     *
+     * @param requestLogDTO
+     * @return
+     */
+    @RequestMapping(value = "/toSingle", method = RequestMethod.POST)
+    public BaseResult<Void> toSingle(@RequestBody PushRequestLogDTO requestLogDTO)
+    {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("requestLogDTO: {}", JSONObject.toJSONString(requestLogDTO));
+        try
+        {
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null)
+            {
+                return result;
+            }
+
+            // 校验参数是否合法
+            if (!checkRequestLog(result, requestLogDTO))
+            {
+                return result;
+            }
+
+            // 发送kafka消息
+            sendMessage2Signgle(requestLogDTO);
+
+        } catch (Exception e)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_TO_SINGLE_EXCEPTION,
+                    JSONObject.toJSONString(requestLogDTO));
+            log.error("", e);
+        }
+        result.setCodeSuccess();
+        return result;
+    }
+
+    /**
+     * 给一批人发送信息
+     *
+     * @param requestLogMultiDTO
+     * @return
+     */
+    @RequestMapping(value = "/toMulti", method = RequestMethod.POST)
+    public BaseResult<Void> toMulti(@RequestBody PushRequestLogMultiDTO requestLogMultiDTO)
+    {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("requestLogMultiDTO: {}", JSONObject.toJSONString(requestLogMultiDTO));
+        try
+        {
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null)
+            {
+                return result;
+            }
+
+            // 校验参数是否合法
+            if (!checkRequestLog4Multi(result, requestLogMultiDTO))
+            {
+                return result;
+            }
+
+            // 发送kafka消息
+            sendMessage2Multi(requestLogMultiDTO);
+
+        } catch (Exception e)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_TO_MULTI_EXCEPTION,
+                    JSONObject.toJSONString(requestLogMultiDTO));
+            log.error("", e);
+        }
+        result.setCodeSuccess();
+        return result;
+    }
+
+    /**
+     * 修改消息的状态为已读
+     *
+     * @param messageId
+     * @return
+     */
+    @RequestMapping(value = "/modify2Read", method = RequestMethod.GET)
+    public BaseResult<Void> modify2Read(@RequestParam Long messageId)
+    {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("messageId: {}", messageId);
+        try
+        {
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null)
+            {
+                return result;
+            }
+
+            PushRequestLogDTO pushRequestLogDTO = new PushRequestLogDTO();
+            pushRequestLogDTO.setId(messageId);
+            pushRequestLogDTO.setStatus(MsgStatusEnum.READED.getCode());
+            pushRequestLogDTO.setCustomerId(client.getCustId());
+            pushRequestLogService.updateByPrimaryKeySelective(pushRequestLogDTO);
+        } catch (Exception e)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_MODIFY_MSG_STATUS_EXCEPTION,
+                    JSONObject.toJSONString(messageId));
+            log.error("", e);
+        }
+        result.setCodeSuccess();
+        return result;
+    }
+
+    /**
+     * 给所有的人发送消息
+     *
+     * @param requestLogDTO
+     * @return
+     */
+    @RequestMapping(value = "toAll", method = RequestMethod.POST)
+    public BaseResult<Void> toAll(@RequestBody PushRequestLogDTO requestLogDTO)
+    {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("requestLogDTO: {}", JSONObject.toJSONString(requestLogDTO));
+        try
+        {
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null)
+            {
+                return result;
+            }
+
+            // 校验参数是否合法
+            if (!checkRequestLog4All(result, requestLogDTO))
+            {
+                return result;
+            }
+
+            // 发送kafka消息
+            sendMessage2All(requestLogDTO);
+
+        } catch (Exception e)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_TO_ALL_EXCEPTION, JSONObject.toJSONString(requestLogDTO));
+            log.error("", e);
+        }
+        result.setCodeSuccess();
+        return result;
+    }
+
+}

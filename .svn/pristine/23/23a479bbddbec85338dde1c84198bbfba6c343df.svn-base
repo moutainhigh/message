@@ -1,0 +1,5 @@
+FROM 10.253.6.113:5000/env/jdk8
+COPY ./target/icare-message.jar /root/startup/
+WORKDIR /root/startup/
+EXPOSE 8080
+CMD ["java", "-Xms300m", "-Xmx900m", "-XX:PermSize=90m", "-XX:MaxPermSize=220m", "-jar", "icare-message.jar"]

@@ -1,0 +1,352 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import com.google.common.base.Preconditions;
+import com.zhongan.health.common.cache.RedisUtils;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.share.enm.YesOrNo;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.icare.message.push.constants.ConstantsDataKey;
+import com.zhongan.icare.message.push.dao.PushGroupDAO;
+import com.zhongan.icare.message.push.dao.dataobject.PushGroupDO;
+import com.zhongan.icare.share.message.dto.PushGroupDTO;
+import com.zhongan.icare.share.message.service.IPushGroupService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+
+@Service
+@RestController
+@Slf4j
+class PushGroupServiceImpl implements IPushGroupService
+{
+    @Resource
+    PushGroupDAO dao;
+
+    @Value("${za.icare.redis.groupAllExpire}")
+    private int groupAllExpire;
+
+    @Autowired
+    private ExecutorService pool;
+
+    String cacheKey(PushGroupDO dataobject)
+    {
+        return "PushGroup." + dataobject.getId();
+    }
+
+    String cacheKey(long id)
+    {
+        return "PushGroup." + id;
+    }
+
+    @Override
+    public long insert(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        Preconditions.checkArgument(!StringUtils.isBlank(dto.getGroupCode()), "groupCode不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushGroupDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insert(dataobject);
+        addRedisThread(BeanUtils.simpleDOAndBOConvert(dataobject, PushGroupDTO.class));
+        return id;
+    }
+
+    @Override
+    public long insertSelective(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        Preconditions.checkArgument(!StringUtils.isBlank(dto.getGroupCode()), "groupCode不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushGroupDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insertSelective(dataobject);
+        addRedisThread(BeanUtils.simpleDOAndBOConvert(dataobject, PushGroupDTO.class));
+        return id;
+    }
+
+    @Override
+    public int updateByPrimaryKey(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKey(dataobject);
+        if (cnt > 0)
+        {
+            RedisUtils.removeExceptionOk(cacheKey(dataobject));
+        }
+        updateRedisThread(dto);
+        return cnt;
+    }
+
+    @Override
+    public int deleteByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "Id必须大于0");
+        int cnt = dao.deleteByPrimaryKey(id);
+        if (cnt > 0)
+        {
+            RedisUtils.removeExceptionOk(cacheKey(id));
+        }
+        removeRedisThread(id);
+        return cnt;
+    }
+
+    @Override
+    public int updateByPrimaryKeySelective(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKeySelective(dataobject);
+        if (cnt > 0)
+        {
+            RedisUtils.removeExceptionOk(cacheKey(dataobject));
+        }
+        updateRedisThread(dto);
+        return cnt;
+    }
+
+    @Override
+    public List<PushGroupDTO> selectByCond(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        List<PushGroupDO> dataobjects = dao.selectByCond(dataobject);
+        return BeanUtils.simpleDOAndBOConvert(dataobjects, PushGroupDTO.class, null);
+    }
+
+    @Override
+    public List<PushGroupDTO> selectAllFromRedis(@RequestBody PushGroupDTO pushGroupDTO)
+    {
+        String key = ConstantsDataKey.REDIS_GROUP_ALL;
+        List<PushGroupDTO> redisList = RedisUtils.getListExceptionAsNull(key, PushGroupDTO.class);
+        if (redisList != null && !redisList.isEmpty())
+        {
+            return redisList;
+        }
+
+        return updateRedisInfo(pushGroupDTO);
+    }
+
+    /**
+     * type
+     *
+     * @param dataDTO
+     */
+    private void addRedisThread(final PushGroupDTO dataDTO)
+    {
+        pool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                updateRedisInfo(dataDTO);
+            }
+        });
+    }
+
+    private void removeRedisThread(final Long id)
+    {
+        pool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                String key = ConstantsDataKey.REDIS_GROUP_ALL;
+                List<PushGroupDTO> redisList = RedisUtils.getListExceptionAsNull(key, PushGroupDTO.class);
+                if (redisList == null || redisList.isEmpty())
+                {
+                    return;
+                }
+                List<PushGroupDTO> newList = new ArrayList<PushGroupDTO>();
+                for (PushGroupDTO d : redisList)
+                {
+                    if (d.getId().longValue() != id)
+                    {
+                        newList.add(d);
+                    } else
+                        continue;
+                }
+                if (!newList.isEmpty())
+                    RedisUtils.putListExceptionOk(key, newList, groupAllExpire);
+            }
+        });
+    }
+
+    /**
+     * 更新redis信息
+     *
+     * @param dataDTO
+     */
+    private void updateRedisThread(final PushGroupDTO dataDTO)
+    {
+        pool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Boolean isDelete = false;
+                List<PushGroupDTO> redisNewList = new ArrayList<PushGroupDTO>();
+                String key = ConstantsDataKey.REDIS_GROUP_ALL;
+                List<PushGroupDTO> redisList = RedisUtils.getListExceptionAsNull(key, PushGroupDTO.class);
+                if (redisList == null || redisList.isEmpty())
+                {
+                    redisList = new ArrayList<PushGroupDTO>();
+                }
+                if (redisList.isEmpty())
+                {
+                    if (dataDTO != null && dataDTO.getIsDeleted().getValue() == YesOrNo.NO.getValue())
+                        redisList.add(dataDTO);
+                } else
+                {
+                    if (dataDTO != null && dataDTO.getIsDeleted().getValue() == YesOrNo.YES.getValue())
+                    {
+                        isDelete = true;
+                    }
+
+                    for (PushGroupDTO d : redisList)
+                    {
+                        if (isDelete)
+                        {
+                            if (d.getId().longValue() != dataDTO.getId().longValue())
+                            {
+                                redisNewList.add(d);
+                            } else
+                                continue;
+
+                        } else
+                        {
+                            if (d.getId().longValue() == dataDTO.getId().longValue())
+                            {
+                                initParamDTO(d, dataDTO);
+                            }
+                        }
+                    }
+                }
+                if (!isDelete)
+                    RedisUtils.putListExceptionOk(key, redisList, groupAllExpire);
+                else
+                    RedisUtils.putListExceptionOk(key, redisNewList, groupAllExpire);
+            }
+        });
+    }
+
+    private void initParamDTO(PushGroupDTO oldData, PushGroupDTO newData)
+    {
+        if (!StringUtils.isBlank(newData.getGroupCode()))
+            oldData.setGroupCode(newData.getGroupCode());
+        if (!StringUtils.isBlank(newData.getGroupName()))
+            oldData.setGroupName(newData.getGroupName());
+        if (!StringUtils.isBlank(newData.getGroupUrl()))
+            oldData.setGroupUrl(newData.getGroupUrl());
+        if (!StringUtils.isBlank(newData.getIco()))
+            oldData.setIco(newData.getIco());
+        if (!StringUtils.isBlank(newData.getComment()))
+            oldData.setComment(newData.getComment());
+        if (newData.getStatus() != null)
+            oldData.setStatus(newData.getStatus());
+        if (newData.getBelong() != null)
+            oldData.setBelong(newData.getBelong());
+    }
+
+    @Override
+    public List<PushGroupDTO> updateRedisInfo(@RequestBody PushGroupDTO pushGroupDTO)
+    {
+        String key = ConstantsDataKey.REDIS_GROUP_ALL;
+        PushGroupDTO groupDTO = new PushGroupDTO();
+        List<PushGroupDTO> pushGroupDTOS = selectByCond(groupDTO);
+        if (pushGroupDTOS == null || pushGroupDTOS.isEmpty())
+        {
+            log.error("group is not exist. ");
+            pushGroupDTOS = new ArrayList<>();
+        }
+
+        if (pushGroupDTO != null)
+        {
+            Boolean isExist = false;
+            for (PushGroupDTO dto : pushGroupDTOS)
+            {
+                if (dto.getGroupCode().equals(pushGroupDTO.getGroupCode()))
+                {
+                    isExist = true;
+                    break;
+                }
+                continue;
+            }
+            if (!isExist)
+                pushGroupDTOS.add(pushGroupDTO);
+        }
+        if (pushGroupDTOS.isEmpty())
+            return null;
+        RedisUtils.putListExceptionOk(key, pushGroupDTOS, groupAllExpire);
+        return pushGroupDTOS;
+    }
+
+    @Override
+    public int countByCond(@RequestBody PushGroupDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushGroupDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushGroupDO.class);
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public PushGroupDTO selectByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "id必须大于0");
+        String cacheKey = cacheKey(id);
+        PushGroupDO dataobject = RedisUtils.getObjectExceptionNull(cacheKey, PushGroupDO.class);
+        if (dataobject == null)
+        {
+            dataobject = dao.selectByPrimaryKey(id);
+            if (dataobject != null)
+            {
+                {
+                    RedisUtils.putExceptionOk(cacheKey, dataobject, 86400);
+                }
+            }
+        }
+        return BeanUtils.simpleDOAndBOConvert(dataobject, PushGroupDTO.class);
+    }
+
+    @Override
+    public PushGroupDTO selectByGroupCode(@RequestParam("groupCode") String groupCode)
+    {
+        // TODO Auto-generated method stub
+        Preconditions.checkArgument(StringUtils.isNotEmpty(groupCode), "分组code必传");
+        List<PushGroupDTO> groupAll = selectAllFromRedis(new PushGroupDTO());
+        if (CollectionUtils.isEmpty(groupAll))
+            return null;
+        for (PushGroupDTO g : groupAll)
+        {
+            if (g.getIsDeleted() == YesOrNo.NO && groupCode.equals(g.getGroupCode()))
+                return g;
+        }
+        return null;
+    }
+
+}

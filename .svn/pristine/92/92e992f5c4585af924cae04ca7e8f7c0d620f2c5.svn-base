@@ -1,0 +1,207 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import com.google.common.base.Preconditions;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.bean.PageDTO;
+import com.zhongan.health.common.share.enm.YesOrNo;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.icare.message.push.dao.PushRequestLogDAO;
+import com.zhongan.icare.message.push.dao.dataobject.PushRequestGroupDO;
+import com.zhongan.icare.message.push.dao.dataobject.PushRequestLogDO;
+import com.zhongan.icare.message.push.enums.MsgStatusEnum;
+import com.zhongan.icare.share.message.dto.MessageSendDTO;
+import com.zhongan.icare.share.message.dto.PushGroupDTO;
+import com.zhongan.icare.share.message.dto.PushRequestGroupDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import com.zhongan.icare.share.message.service.IPushRequestLogService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RestController
+@Slf4j
+public class PushRequestLogServiceImpl implements IPushRequestLogService
+{
+    @Resource
+    PushRequestLogDAO dao;
+
+    @Override
+    public long insert(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushRequestLogDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insert(dataobject);
+        return id;
+    }
+
+    @Override
+    public long insertSelective(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushRequestLogDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insertSelective(dataobject);
+        return id;
+    }
+
+    @Override
+    public int updateByPrimaryKey(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKey(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public int deleteByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "Id必须大于0");
+        int cnt = dao.deleteByPrimaryKey(id);
+        return cnt;
+    }
+
+    @Override
+    public int updateByPrimaryKeySelective(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKeySelective(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public PageDTO<PushRequestLogDTO> selectByCond(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PageDTO<PushRequestLogDTO> page = new PageDTO<PushRequestLogDTO>();
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        List<PushRequestLogDO> dataobjects = dao.selectByCond(dataobject);
+        List<PushRequestLogDTO> list = BeanUtils.simpleDOAndBOConvert(dataobjects, PushRequestLogDTO.class, null);
+        page.setResultList(list);
+        if (dto.getPage() != null)
+        {
+            page.setTotalItem(dto.getPage().getTotalItem());
+            page.setPageSize(dto.getPage().getPageSize());
+            page.setCurrentPage(dto.getPage().getCurrentPage());
+        }
+        return page;
+    }
+
+    @Override
+    public int countByCond(@RequestBody PushRequestLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushRequestLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushRequestLogDO.class);
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public PushRequestLogDTO selectByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "id必须大于0");
+        PushRequestLogDO dataobject = dao.selectByPrimaryKey(id);
+        return BeanUtils.simpleDOAndBOConvert(dataobject, PushRequestLogDTO.class);
+    }
+
+    /**
+     * 根据会员id查询员工的所有分组消息中的最新的一条和其对应的组的信息
+     *
+     * @param customerId
+     * @return
+     */
+    @Override
+    public List<PushRequestGroupDTO> selectRequestGroupByCus(@RequestParam("customerId") long customerId)
+    {
+        Preconditions.checkArgument(customerId > 0, "customerId必须大于0");
+        List<PushRequestGroupDO> list = dao.selectRequestGroupByCus(customerId);
+        // 没有通用的方法，目前先这样处理
+        List<PushRequestGroupDTO> newlist = new ArrayList<PushRequestGroupDTO>();
+        for (PushRequestGroupDO prdo : list)
+        {
+            PushRequestLogDTO pushRequestLogDTO = BeanUtils.simpleDOAndBOConvert(prdo.getPushRequestLogDO(), PushRequestLogDTO.class);
+            PushGroupDTO pushGroupDTO = BeanUtils.simpleDOAndBOConvert(prdo.getPushGroupDO(), PushGroupDTO.class);
+            PushRequestGroupDTO dto = new PushRequestGroupDTO();
+            dto.setPushRequestLogDTO(pushRequestLogDTO);
+            dto.setPushGroupDTO(pushGroupDTO);
+            PushRequestLogDTO seachBean = new PushRequestLogDTO();
+            seachBean.setGroupCode(pushGroupDTO.getGroupCode());
+            seachBean.setIsDeleted(YesOrNo.NO);
+            seachBean.setStatus(MsgStatusEnum.UNREAD.getCode());
+            dto.setUnReadCount(countByCond(seachBean));
+            newlist.add(dto);
+        }
+        return newlist;
+    }
+
+    @Override
+    public BaseResult sendMessage4App(@RequestBody MessageSendDTO messageSendDTO)
+    {
+        Preconditions.checkArgument(messageSendDTO != null, "查询条件不能为空.");
+        BaseResult<Void> result = new BaseResult<Void>();
+        if (!checkParam4app(result, messageSendDTO))
+        {
+            return result;
+        }
+
+
+        return result;
+    }
+
+    /**
+     * 入参的检查
+     *
+     * @param result
+     * @param messageSendDTO
+     * @return
+     */
+    private Boolean checkParam4app(BaseResult result, MessageSendDTO messageSendDTO)
+    {
+        // 检查group信息
+//        if (messageSendDTO.getGroupId() == null || new BigDecimal(messageSendDTO.getGroupId()).compareTo(new BigDecimal(0)) == 0)
+//        {
+//            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_GROUP_IS_NULL,
+//                    JSONObject.toJSONString(messageSendDTO));
+//            log.error("消息分组id:{}", messageSendDTO.getGroupId());
+//            return false;
+//        }
+//
+//        // 检查需要发送的会员的id
+//        if (messageSendDTO.getCustIds() == null || messageSendDTO.getCustIds().isEmpty())
+//        {
+//            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_GROUP_IS_NULL,
+//                    JSONObject.toJSONString(messageSendDTO));
+//            log.error("消息接受方的会员id:{}", messageSendDTO.getGroupId());
+//            return false;
+//        }
+
+        // 检查是否存在需要发送的消息
+
+        return true;
+    }
+}

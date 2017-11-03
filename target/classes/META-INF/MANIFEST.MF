@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Implementation-Title: icare-message
+Implementation-Version: 0.0.1
+Built-By: za-zhangxiaojun
+Implementation-Vendor-Id: com.zhongan
+Build-Jdk: 1.8.0_112
+Created-By: Maven Integration for Eclipse
+Implementation-Vendor: Pivotal Software, Inc.
+

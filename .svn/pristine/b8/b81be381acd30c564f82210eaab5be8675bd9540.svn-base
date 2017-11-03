@@ -1,0 +1,43 @@
+package com.zhongan.icare.message.push.service;
+
+import com.zhongan.icare.share.message.dto.PushBaiduChannelDTO;
+import org.springframework.cloud.netflix.feign.FeignClient;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Service
+@FeignClient(name = "icare-message")
+public interface IPushBaiduChannelService {
+    @RequestMapping(path = "insert",method={RequestMethod.POST})
+    long insert(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "insertSelective",method={RequestMethod.POST})
+    long insertSelective(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "updateByPrimaryKey",method={RequestMethod.POST})
+    int updateByPrimaryKey(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "deleteByPrimaryKey",method={RequestMethod.GET})
+    int deleteByPrimaryKey(@RequestParam("id") long id);
+
+    @RequestMapping(path = "updateByPrimaryKeySelective",method={RequestMethod.POST})
+    int updateByPrimaryKeySelective(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "selectByCond",method={RequestMethod.POST})
+    List<PushBaiduChannelDTO> selectByCond(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "countByCond",method={RequestMethod.POST})
+    int countByCond(@RequestBody PushBaiduChannelDTO dto);
+
+    @RequestMapping(path = "selectByPrimaryKey",method={RequestMethod.GET})
+    PushBaiduChannelDTO selectByPrimaryKey(@RequestParam("id") long id);
+
+    /**
+     * 保存更新百度渠道信息
+     * @param dto
+     * @return
+     */
+    public Boolean saveOrUpdateDevice(@RequestBody PushBaiduChannelDTO dto);
+}

@@ -1,0 +1,160 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import com.alibaba.fastjson.JSONObject;
+import com.baidu.yun.push.exception.PushClientException;
+import com.baidu.yun.push.exception.PushServerException;
+import com.baidu.yun.push.model.PushMsgToSingleDeviceRequest;
+import com.baidu.yun.push.model.PushMsgToSingleDeviceResponse;
+import com.google.gson.Gson;
+import com.sun.jmx.snmp.Timestamp;
+import com.zhongan.icare.message.push.constants.ConstantsDataKey;
+import com.zhongan.icare.message.push.enums.PushDefaultValueEnum;
+import com.zhongan.icare.message.push.util.BaiduPushClientUtils;
+import com.zhongan.icare.share.message.dto.PushBaiduChannelDTO;
+import com.zhongan.icare.share.message.dto.PushSendLogDTO;
+import com.zhongan.icare.share.message.enm.BaiduDeviceTypeEnum;
+import com.zhongan.icare.share.message.service.IPushBaiduService;
+import com.zhongan.icare.share.message.service.IPushSendLogService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+
+@Service
+@RestController
+@RequestMapping(value = "/v2/baiduSerive")
+@Slf4j
+public class PushBaiduServiceImpl implements IPushBaiduService
+{
+
+    @Autowired
+    private ExecutorService pool;
+
+    @Value("${msg.ios.status}")
+    private int DEPOLYSTATUS;
+
+    @Resource
+    private IPushSendLogService pushSendLogService;
+
+    @Resource
+    private BaiduPushClientUtils baiduPushClientUtils;
+
+    /**
+     * 给单个人推送消息
+     *
+     * @param baiduChannelDTO
+     * @param contextMap
+     * @return
+     */
+    @Override
+    public boolean pushMsgToSingleDevice(final PushBaiduChannelDTO baiduChannelDTO, final Map<String, Object> contextMap)
+    {
+        pool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Map<String, Object> allMap = new HashMap<String, Object>();
+                if (baiduChannelDTO.getDeviceType().intValue() == BaiduDeviceTypeEnum.ANDROID.getCode())
+                {
+                    allMap.put(ConstantsDataKey.ANDROID_TITLE, contextMap.get(ConstantsDataKey.DATA_KEY_TITLE));
+                    allMap.put(ConstantsDataKey.ANDROID_DESCRIPTION, contextMap.get(ConstantsDataKey.DATA_KEY_DESCRIPTION));
+                    allMap.put(ConstantsDataKey.ANDROID_NOTIFICATION_BUILDER_ID, Integer.parseInt(PushDefaultValueEnum.ANDROID_NOTIFICATION_BUILDER_ID_0.getValue()));
+                    allMap.put(ConstantsDataKey.ANDROID_CUSTOM_CONTENT, contextMap.get(ConstantsDataKey.ANDROID_CUSTOM_CONTENT));
+                    contextMap.put(ConstantsDataKey.DATA_MAP_IOS_ANDROID, allMap);
+                    pushAndroidSingleDeviceMsg(baiduChannelDTO, contextMap);
+                } else if (baiduChannelDTO.getDeviceType().intValue() == BaiduDeviceTypeEnum.IOS.getCode())
+                {
+                    Map<String, String> aps = new HashMap<String, String>();
+                    aps.put(ConstantsDataKey.IOS_ALERT, contextMap.get(ConstantsDataKey.DATA_KEY_TITLE).toString());
+                    aps.put(ConstantsDataKey.IOS_SOUND, PushDefaultValueEnum.IOS_SOUND_DEFAULT.getValue());
+                    allMap.put(ConstantsDataKey.IOS_APS, aps);
+                    allMap.putAll((Map) contextMap.get(ConstantsDataKey.ANDROID_CUSTOM_CONTENT));
+                    contextMap.put(ConstantsDataKey.DATA_MAP_IOS_ANDROID, allMap);
+                    pushIOSSingleDeviceMsg(baiduChannelDTO, contextMap);
+                }
+            }
+        });
+
+        return false;
+    }
+
+    /**
+     * 向Android设备推送单个消息
+     */
+    private boolean pushAndroidSingleDeviceMsg(PushBaiduChannelDTO baiduChannelDTO, Map<String, Object> contextMap)
+    {
+        try
+        {
+            PushMsgToSingleDeviceRequest request = new PushMsgToSingleDeviceRequest().addChannelId(baiduChannelDTO.getChannelId())
+                    .addMessageType(Integer.parseInt(contextMap.get(ConstantsDataKey.REQUEST_MESSAGE_TYPE).toString())). //设置消息类型,0表示透传消息,1表示通知,默认为0.
+                    addMessage(new Gson().toJson(contextMap.get(ConstantsDataKey.DATA_MAP_IOS_ANDROID))).addDeviceType(BaiduDeviceTypeEnum.ANDROID.getCode());
+            PushMsgToSingleDeviceResponse response = baiduPushClientUtils.loadAndroidPushClient().pushMsgToSingleDevice(request);
+            // 保存发送消息
+            saveSendLog(baiduChannelDTO, response.getMsgId(), response.getSendTime(), contextMap);
+            log.info("msgId : {},sendTime : {}", response.getMsgId(), response.getSendTime());
+            return true;
+        } catch (PushClientException ce)
+        {
+            log.error("百度消息android个人推送异常PushClientException:{},exception:{}", ce.getMessage(), ce);
+        } catch (PushServerException se)
+        {
+            log.error("百度消息android个人推送异常PushServerException:{},exception:{}", se.getMessage(), se);
+        }
+
+        return false;
+    }
+
+    /**
+     * 保存百度推送的消息
+     *
+     * @param baiduChannelDTO
+     * @param contextMap
+     */
+    private void saveSendLog(PushBaiduChannelDTO baiduChannelDTO, String msgId, Long sendTime, Map<String, Object> contextMap)
+    {
+        PushSendLogDTO logDTO = new PushSendLogDTO();
+        logDTO.setBaiduChannel(baiduChannelDTO.getChannelId());
+        logDTO.setBaiduMsgid(msgId);
+        logDTO.setDeviceType(baiduChannelDTO.getDeviceType());
+        logDTO.setMessageContent(JSONObject.toJSONString(contextMap.get(ConstantsDataKey.DATA_MAP_IOS_ANDROID)));
+        logDTO.setRequestLogId(Long.parseLong(contextMap.get(ConstantsDataKey.REQUEST_LOG_ID).toString()));
+        logDTO.setSendTime(new Timestamp(sendTime).getDate());
+        pushSendLogService.insert(logDTO);
+    }
+
+    /**
+     * 像ios设备推送单个消息
+     */
+    private boolean pushIOSSingleDeviceMsg(PushBaiduChannelDTO baiduChannelDTO, Map<String, Object> contextMap)
+    {
+        try
+        {
+            PushMsgToSingleDeviceRequest request = new PushMsgToSingleDeviceRequest().addChannelId(baiduChannelDTO.getChannelId())
+                    .addMessageType(Integer.parseInt(contextMap.get(ConstantsDataKey.REQUEST_MESSAGE_TYPE).toString())).addDeployStatus(DEPOLYSTATUS). //设置消息类型,0表示透传消息,1表示通知,默认为0.
+                    addMessage(new Gson().toJson(contextMap.get(ConstantsDataKey.DATA_MAP_IOS_ANDROID))).addDeviceType(BaiduDeviceTypeEnum.IOS.getCode());
+            PushMsgToSingleDeviceResponse response = baiduPushClientUtils.loadIosPushClient().pushMsgToSingleDevice(request);
+            // 保存发送消息
+            saveSendLog(baiduChannelDTO, response.getMsgId(), response.getSendTime(), contextMap);
+            log.info("msgId : {},sendTime : {}", response.getMsgId(), response.getSendTime());
+            return true;
+        } catch (PushClientException ce)
+        {
+            log.error("百度消息IOS个人推送异常PushClientException:{},exception:{}", ce.getMessage(), ce);
+        } catch (PushServerException se)
+        {
+            log.error("百度消息IOS个人推送异常PushServerException:{},exception:{}", se.getMessage(), se);
+        }
+
+        return false;
+    }
+
+
+}

@@ -1,0 +1,79 @@
+package com.zhongan.icare.message.push.mq.handler;
+
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.utils.bean.hash.JenkinsHash;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import com.zhongan.icare.share.message.dto.PushTemplateDTO;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
+
+@Slf4j
+public class Message2SingleProcesser extends MessageCommonProcesser<PushRequestLogDTO>
+{
+
+    @Override
+    public String name()
+    {
+        return MessageEventType.MSG_2_SINGLE.getCode();
+    }
+
+    /**
+     * 计算
+     *
+     * @param pushRequestLogDTO
+     * @return
+     */
+    @Override
+    protected String caclKey(PushRequestLogDTO pushRequestLogDTO, String... keys)
+    {
+        JenkinsHash hash = new JenkinsHash();
+        String customerIds = pushRequestLogDTO.getCustomerId().toString();
+        try
+        {
+            return Long.toString(hash.hash((commonKey(keys) + customerIds + commonKey(pushRequestLogDTO)).getBytes("ISO-8859-1")));
+        } catch (UnsupportedEncodingException e)
+        {
+            log.error("", e);
+            return null;
+        }
+    }
+
+    @Override
+    public void process(PushRequestLogDTO requestLogDTO)
+    {
+        // 首先做消息的解析
+        PushTemplateDTO pushTemplateDTO = loadPushTemplateDTO(requestLogDTO);
+        if (pushTemplateDTO == null)
+            return;
+        // json数据转换
+        JSONObject jsonObject = JSONObject.parseObject(requestLogDTO.getData());
+        Map<String, Object> contextMap = (Map) jsonObject;
+        // 组装contextMap和初始化PushRequestLogDTO对象
+        initLogDTO(requestLogDTO, pushTemplateDTO, contextMap);
+        // 保存并且发送推送信息
+        insertAndSendMessage(requestLogDTO, contextMap);
+    }
+
+    @Override
+    public boolean match(String tag, String topic, String bizKey)
+    {
+        log.info("recieve kafka message tag : {}", tag);
+        return MessageEventType.MSG_2_SINGLE.getCode().equals(tag);
+    }
+
+    @Override
+    public void process(String tag, String bizKey, PushRequestLogDTO requestLogDTO)
+    {
+        // 首先检查是否是重复消费
+        if (isRepeatConsume(caclKey(requestLogDTO, bizKey)))
+        {
+            log.warn("单个推送的重复消费，requestLogDTO:{},bizKey:{}", JSONObject.toJSONString(requestLogDTO), bizKey);
+            return;
+        }
+        process(requestLogDTO);
+    }
+
+}

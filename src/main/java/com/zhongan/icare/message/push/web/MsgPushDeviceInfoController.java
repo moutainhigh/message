@@ -1,0 +1,66 @@
+package com.zhongan.icare.message.push.web;
+
+import javax.annotation.Resource;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.icare.common.client.ClientInfo;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushRelDO;
+import com.zhongan.icare.message.push.service.IMsgPushRelService;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.customer.dto.CustCustomerDTO;
+import com.zhongan.icare.share.customer.dto.CustOptionDTO;
+import com.zhongan.icare.share.customer.service.ICustomerQueryService;
+
+@RestController
+@RequestMapping(value = "/v1/deviceInfo")
+@Slf4j
+public class MsgPushDeviceInfoController {
+    @Resource
+    private IMsgPushRelService    msgPushRelService;
+    @Resource
+    private ICustomerQueryService customerQueryService;
+
+    @RequestMapping(value = "/addDevice", method = RequestMethod.GET)
+    public BaseResult<Void> addDevice(@RequestParam Integer deviceType, @RequestParam String channelId) {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("deviceType : {}, channelId : {}", deviceType, channelId);
+        try {
+            ClientInfo client = ClientInfo.client();
+            if (client == null) {
+                log.warn("can't get client info");
+                ExceptionUtils.setErrorInfo(result, ErrorCode.CUST_LOGIN_ACCT_EXPIRED);
+                return result;
+            }
+            Long custId = client.getCustId();
+            CustOptionDTO option = new CustOptionDTO();
+            option.setCustId(custId);
+            CustCustomerDTO customer = customerQueryService.query(option);
+            Long parentId = customer.getParentCustId();
+            log.info("message push login cust info , [custId :{}, parentId : {}]", custId, parentId);
+            if (parentId != null && 0l != parentId.longValue()) {
+                if (StringUtils.isNotBlank(channelId) && deviceType != null && deviceType.intValue() != 0) {
+                    MsgPushRelDO relDO = new MsgPushRelDO();
+                    relDO.setChannelId(channelId);
+                    relDO.setCustId(custId);
+                    relDO.setDeviceType(deviceType);
+                    relDO.setOrgId(parentId);
+                    msgPushRelService.saveOrUpdateDevice(relDO);
+                }
+            }
+            result.setCodeSuccess();
+        } catch (Exception e) {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.CMN_CREATE_ERR, deviceType, channelId);
+            log.error("", e);
+        }
+        return result;
+    }
+}

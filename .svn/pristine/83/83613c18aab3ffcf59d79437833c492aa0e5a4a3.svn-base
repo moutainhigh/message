@@ -1,0 +1,163 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import com.alibaba.fastjson.JSONObject;
+import com.google.common.base.Preconditions;
+import com.zhongan.health.common.cache.RedisUtils;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.icare.message.push.dao.PushBaiduChannelDAO;
+import com.zhongan.icare.message.push.dao.dataobject.PushBaiduChannelDO;
+import com.zhongan.icare.message.push.service.IPushBaiduChannelService;
+import com.zhongan.icare.share.message.dto.PushBaiduChannelDTO;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import java.util.Date;
+import java.util.List;
+
+@Service
+@Slf4j
+@RestController
+@RequestMapping(value = "/baiduChannel")
+class PushBaiduChannelServiceImpl implements IPushBaiduChannelService {
+    @Resource
+    PushBaiduChannelDAO dao;
+
+    String cacheKey(PushBaiduChannelDO dataobject) {
+        return "PushBaiduChannel."+dataobject.getId();
+    }
+
+    String cacheKey(long id) {
+        return "PushBaiduChannel."+id;
+    }
+
+    public long insert(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null,"dto不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        Long id=dataobject.getId();
+        if(id==null)
+        {
+            id= SequenceFactory.nextId(PushBaiduChannelDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insert(dataobject);
+        return id;
+    }
+
+    public long insertSelective(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null,"dto不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        Long id=dataobject.getId();
+        if(id==null)
+        {
+            id= SequenceFactory.nextId(PushBaiduChannelDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insertSelective(dataobject);
+        return id;
+    }
+
+    public int updateByPrimaryKey(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null&&dto.getId()!=null,"Id不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKey(dataobject);
+        if(cnt>0)
+        {
+            RedisUtils.remove(cacheKey(dataobject));
+        }
+        return cnt;
+    }
+
+    public int deleteByPrimaryKey(@RequestParam("id") long id) {
+        Preconditions.checkArgument(id>0,"Id必须大于0");
+        int cnt = dao.deleteByPrimaryKey(id);
+        if(cnt>0)
+        {
+            RedisUtils.remove(cacheKey(id));
+        }
+        return cnt;
+    }
+
+    public int updateByPrimaryKeySelective(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null&&dto.getId()!=null,"Id不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKeySelective(dataobject);
+        if(cnt>0)
+        {
+            RedisUtils.remove(cacheKey(dataobject));
+        }
+        return cnt;
+    }
+
+    public List<PushBaiduChannelDTO> selectByCond(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null,"查询条件不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        List<PushBaiduChannelDO> dataobjects =  dao.selectByCond(dataobject);
+        return BeanUtils.simpleDOAndBOConvert(dataobjects, PushBaiduChannelDTO.class,null);
+    }
+
+    public int countByCond(@RequestBody PushBaiduChannelDTO dto) {
+        Preconditions.checkArgument(dto != null,"查询条件不能为空.");
+        PushBaiduChannelDO dataobject= BeanUtils.simpleDOAndBOConvert(dto,PushBaiduChannelDO.class);
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    public PushBaiduChannelDTO selectByPrimaryKey(@RequestParam("id") long id) {
+        Preconditions.checkArgument(id >0,"id必须大于0");
+        String cacheKey = cacheKey(id);
+        PushBaiduChannelDO dataobject= RedisUtils.getObjectExceptionNull(cacheKey,PushBaiduChannelDO.class);
+        if(dataobject==null)
+        {
+            dataobject =  dao.selectByPrimaryKey(id);
+            if(dataobject!=null)
+            {
+                {
+                    RedisUtils.putExceptionOk(cacheKey, dataobject, 86400);
+                }
+            }
+        }
+        return BeanUtils.simpleDOAndBOConvert(dataobject, PushBaiduChannelDTO.class);
+    }
+
+
+    /**
+     * 保存更新百度渠道信息
+     * @param dto
+     * @return
+     */
+    @RequestMapping(value = "/updateDevice",method = RequestMethod.POST)
+    @Override
+    public Boolean saveOrUpdateDevice(@RequestBody PushBaiduChannelDTO dto){
+
+        log.info("百度渠道更新信息：{}",JSONObject.toJSONString(dto));
+        // 首先检查会员id
+        Preconditions.checkArgument(dto != null && dto.getCustomerId() != null,"customerId不能为空.");
+
+        // 首先检查数据库中有没有渠道信息
+        PushBaiduChannelDTO searchBean = new PushBaiduChannelDTO();
+        searchBean.setCustomerId(dto.getCustomerId());
+        List<PushBaiduChannelDTO> dtolist = this.selectByCond(searchBean);
+        if(dtolist != null && dtolist.size() > 0){
+            // 系统中存在，则进行更新操作
+            PushBaiduChannelDTO newDto = dtolist.get(0);
+            newDto.setChannelId(dto.getChannelId());
+            newDto.setGmtModified(new Date());
+            newDto.setDeviceType(dto.getDeviceType());
+            this.updateByPrimaryKeySelective(newDto);
+            return true;
+        }
+
+        // 说明系统中不存在当前用户的信息，则进行的插入操作
+        this.insert(dto);
+        return true;
+
+    }
+}

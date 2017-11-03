@@ -1,0 +1,55 @@
+package com.zhongan.icare.message.push.util;
+
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.VelocityEngine;
+
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+/**
+ * Created by zhangxiaojun on 2016/12/12.
+ */
+public class VelocityUtils
+{
+
+    /**
+     * 替换模板中的变量
+     *
+     * @param contextMap 需要替换的变量
+     * @param content    模板内容
+     * @return
+     */
+    public static String convertData(VelocityEngine velocityEngine, Map<String, Object> contextMap, String content)
+    {
+        // 取得velocity的上下文context
+        VelocityContext context = new VelocityContext();
+        Iterator<Map.Entry<String, Object>> iterator = contextMap.entrySet().iterator();
+        while (iterator.hasNext())
+        {
+            // 把数据填入上下文
+            Map.Entry<String, Object> entryNext = iterator.next();
+            context.put(entryNext.getKey(), entryNext.getValue());
+        }
+        // 输出流
+        StringWriter writer = new StringWriter();
+        // 转换输出
+        velocityEngine.evaluate(context, writer, "", content); // 关键方法
+        return writer.toString();
+    }
+
+
+    public static void main(String[] args)
+    {
+        Map<String, Object> contextMap = new HashMap();
+        contextMap.put("title", "#袁平安邀你运动# 快来报名参加，我发起的代码revie活动！不负青春，嗨起来！！");
+        contextMap.put("link", "https://test.zuifuli.io/api/gateway/app/lanuch?appCode=club&channelCode=sz&redirect=http://wechat.zhongan.com/Dev_8XUA0HY/suite/xieyingshuang/club/activity/detail.html?activityId=432&corpid=ifuli1058001&_source=ifuli");
+        contextMap.put("picLink", "https://dev-cdn.zhongan.com/a00000/Project/WecorpSuite/Club/V3/img/share_img.png");
+        String content = "{\"content\":\"#if($content)<div style='margin:20px 0px 0px 0px;font-size:15px;color:#333333'>$!content</div>#else $!content  #end\",\"title\":\"$title\",\"image\":\"$!picLink\",\"details\":\"查看详情\",\"detailsUrl\":\"$!link\"}";
+        VelocityEngine v = new VelocityEngine();
+        v.init();
+        System.out.println(convertData(v, contextMap, content));
+    }
+
+}

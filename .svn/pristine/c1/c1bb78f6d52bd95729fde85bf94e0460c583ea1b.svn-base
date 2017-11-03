@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: icare-message
+  cloud:
+    config:
+      uri: http://msc.zhonganonline.com:8888
+      label: ${DEPLOY_ENV}
+  sleuth:
+    log:
+      json:
+        enabled: false
+      slf4j:
+        enabled: false

@@ -1,0 +1,15 @@
+2017-05-17 13:48:13,647 [main] INFO  [org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor] [AutowiredAnnotationBeanPostProcessor.java:153]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2017-05-17 13:48:13,699 [main] INFO  [org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker] [PostProcessorRegistrationDelegate.java:328]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Bean 'configurationPropertiesRebinderAutoConfiguration' of type [class org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration$$EnhancerBySpringCGLIB$$57fa7fab] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2017-05-17 13:48:15,875 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:73]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Fetching config from server at: http://msc.zhonganonline.com:8888
+2017-05-17 13:48:17,452 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:83]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located environment: name=icare-message, profiles=[default], label=dev, version=24054
+2017-05-17 13:48:17,453 [main] INFO  [org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration] [PropertySourceBootstrapConfiguration.java:93]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located property source: CompositePropertySource [name='configService', propertySources=[MapPropertySource [name='http://svn.zhonganonline.com/repos/zis/microservices/app/config/file:/alidata1/admin/confignew/dev/icare-message.yml']]]

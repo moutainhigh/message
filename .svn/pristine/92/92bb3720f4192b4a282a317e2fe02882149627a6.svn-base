@@ -1,0 +1,61 @@
+package com.zhongan.icare.message;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.embedded.FilterRegistrationBean;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
+import org.springframework.cloud.netflix.feign.EnableFeignClients;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.ImportResource;
+import org.springframework.core.env.Environment;
+
+import com.taobao.tddl.client.jdbc.TDataSource;
+import com.zhongan.icare.common.web.filter.ClientFilter;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableEurekaClient
+@ImportResource("classpath:beanRefContext.xml")
+@EnableFeignClients(clients = { com.zhongan.icare.share.customer.service.ICustomerQueryService.class,
+        com.zhongan.icare.share.customer.service.ICustomerService.class,
+        com.zhongan.icare.common.mq.handler.MatchJsonMessageHandler.class })
+@Configuration
+public class MessageApplication {
+    public static void main(String[] args) {
+        SpringApplication application = new SpringApplication(MessageApplication.class);
+        application.run(args);
+    }
+
+    @Bean
+    public FilterRegistrationBean clientAuth() {
+        FilterRegistrationBean registration = new FilterRegistrationBean();
+        registration.setFilter(new ClientFilter());
+        registration.addUrlPatterns("/*");
+        registration.setName("ClientInfoFilter");
+        registration.setOrder(1);
+        return registration;
+    }
+
+    @Bean(name = "dataSource", initMethod = "init")
+    @Autowired
+    public DataSource createDataSource(Environment env) {
+        TDataSource dataSource = new TDataSource();
+        dataSource.setAppName(env.getProperty("tddl.appname"));
+        dataSource.setDynamicRule(true);
+        return dataSource;
+    }
+
+    @Bean(name = "pool")
+    @Autowired
+    public ExecutorService createThreadPool() {
+        return Executors.newCachedThreadPool();
+    }
+}

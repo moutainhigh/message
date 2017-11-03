@@ -1,0 +1,394 @@
+package com.zhongan.icare.message.push.web;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.message.common.publish.IMessageSender;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.bean.PageDTO;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.icare.common.client.ClientInfo;
+import com.zhongan.icare.message.push.constants.ConstantsDataKey;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.common.enm.StatusEnum;
+import com.zhongan.icare.share.customer.dto.CustCustomerDTO;
+import com.zhongan.icare.share.customer.dto.CustOptionDTO;
+import com.zhongan.icare.share.customer.service.ICustomerQueryService;
+import com.zhongan.icare.share.message.dto.MessageSendDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogMultiDTO;
+import com.zhongan.icare.share.message.dto.ThirdMessageDTO;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+
+import javax.annotation.Resource;
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+
+/**
+ * 所有controller的基类
+ */
+@Slf4j
+public abstract class MessageBaseController
+{
+
+    @Resource
+    private ICustomerQueryService customerQueryService;
+
+    @Resource(name = "cashierSender")
+    private IMessageSender<byte[]> cashierSender;
+
+    @Autowired
+    public ExecutorService pool;
+
+    @Value("${za.icare.message.processor.toAllTemplateCode}")
+    private String TO_ALL_DEFAULT_TEMPLATE_CODE;
+
+    /**
+     * 检查客户端信息
+     *
+     * @param result
+     * @return clientInfo
+     */
+    protected ClientInfo loadClientInfo(BaseResult<?> result)
+    {
+        ClientInfo client = ClientInfo.client();
+        if (client == null)
+        {
+            log.warn("can't get client info");
+            ExceptionUtils.setErrorInfo(result, ErrorCode.CUST_LOGIN_ACCT_EXPIRED);
+        }
+        return client;
+    }
+
+    /**
+     * 初始化分页信息
+     *
+     * @return
+     */
+    protected PageDTO initPageInfo(Integer pageSize, Integer currentPage)
+    {
+        PageDTO pageDTO = new PageDTO();
+        if (pageSize != null && pageSize.intValue() != 0)
+            pageDTO.setPageSize(pageSize);
+        if (currentPage != null && currentPage.intValue() != 0)
+            pageDTO.setCurrentPage(currentPage);
+        int currentPageTemp = pageDTO.getCurrentPage() == 0 ? 1 : pageDTO.getCurrentPage();
+        int pageSizeTemp = pageDTO.getPageSize();
+        int startRow = (currentPageTemp - 1) * pageSizeTemp;
+        pageDTO.setStartRow(startRow);
+        return pageDTO;
+    }
+
+    /**
+     * 初始化分页信息（startRow）
+     *
+     * @return
+     */
+    protected PageDTO initPageInfo(Integer pageSize, Integer currentPage, Integer startRow)
+    {
+        PageDTO pageDTO = initPageInfo(pageSize, currentPage);
+        if (startRow != null && startRow.intValue() != 0) pageDTO.setStartRow(startRow);
+        return pageDTO;
+    }
+
+    /**
+     * 检查会员信息
+     *
+     * @param custId
+     * @return
+     */
+    protected Boolean checkCustomerInfo(BaseResult<Void> result, Long custId)
+    {
+        CustOptionDTO option = new CustOptionDTO();
+        option.setCustId(custId);
+        CustCustomerDTO customer = customerQueryService.query(option);
+        if (customer == null)
+        {
+            log.error("customer is not exist");
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CUSTOMER_NOT_EXIST);
+            return false;
+        }
+
+        // 目前只有正常的会员可以发送信息
+        if (customer.getCustStatus().getValue().intValue() != StatusEnum.ACTIVED.getValue().intValue())
+        {
+            log.error("customer status is {}", customer.getCustStatus().getValue());
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CUSTOMER_STATUS_WRONG);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 检查设备信息
+     *
+     * @param result
+     * @param deviceType
+     * @param channelId
+     * @return
+     */
+    protected Boolean checkDeviceInfo(BaseResult<Void> result, Integer deviceType, String channelId)
+    {
+        if (deviceType == null || deviceType.intValue() == 0)
+        {
+            // 设备类型不存在
+            log.warn("deviceType:{}", deviceType);
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_DEVICE_TYPE_NULL);
+            return false;
+        }
+
+        if (StringUtils.isBlank(channelId))
+        {
+            // 渠道信息不存在
+            log.warn("channelId:{}", channelId);
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CHANNEL_ID_NULL);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 检查参数
+     *
+     * @param result
+     * @param thirdMessageDTO
+     * @return
+     */
+    protected Boolean checkParam4Thrid(BaseResult<Void> result, ThirdMessageDTO thirdMessageDTO)
+    {
+        if (thirdMessageDTO == null)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_REQUEST_NULL, null);
+            return false;
+        }
+        // 检查需要发送的cusId是否存在
+        if (thirdMessageDTO.getCusIds() == null || thirdMessageDTO.getCusIds().isEmpty())
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CUSTOMER_IDS_NULL, null);
+            return false;
+        }
+        return true;
+//        return checkData(result, thirdMessageDTO.getDataMap()) ? true : false;
+    }
+
+    /**
+     * 检查参数信息
+     *
+     * @param result
+     * @param requestLogDTO
+     * @return
+     */
+    protected Boolean checkRequestLog(BaseResult<Void> result, PushRequestLogDTO requestLogDTO)
+    {
+        if (requestLogDTO == null)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_REQUEST_NULL, null);
+            return false;
+        }
+
+        // 校验会员id是否为空
+        if (requestLogDTO.getCustomerId() == null || new BigDecimal(requestLogDTO.getCustomerId()).compareTo(new BigDecimal(0)) == 0)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CUSTOMER_ID_NULL, JSONObject.toJSONString(requestLogDTO));
+            return false;
+        }
+
+        // 公共的检查
+        if (!commonCheck(result, requestLogDTO))
+            return false;
+
+        return true;
+    }
+
+    /**
+     * 检查参数信息
+     *
+     * @param result
+     * @param requestLogDTO
+     * @return
+     */
+    protected Boolean checkRequestLog4Multi(BaseResult<Void> result, PushRequestLogMultiDTO requestLogDTO)
+    {
+        if (requestLogDTO == null)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_REQUEST_NULL, null);
+            return false;
+        }
+
+        // 校验会员id是否为空
+        if (requestLogDTO.getCustomerIds() == null || requestLogDTO.getCustomerIds().isEmpty())
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_CUSTOMER_IDS_NULL,
+                    JSONObject.toJSONString(requestLogDTO));
+            return false;
+        }
+
+        // 公共的检查
+        if (!commonCheck(result, requestLogDTO))
+            return false;
+
+        return true;
+    }
+
+    /**
+     * 检查参数信息
+     *
+     * @param result
+     * @param requestLogDTO
+     * @return
+     */
+    protected Boolean checkRequestLog4All(BaseResult<Void> result, PushRequestLogDTO requestLogDTO)
+    {
+        if (requestLogDTO == null)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_REQUEST_NULL, null);
+            return false;
+        }
+
+        // 此处设置消息模板，如果模板为空，则设置一个默认的模板编号
+        if (StringUtils.isBlank(requestLogDTO.getTemplateCode()))
+        {
+            requestLogDTO.setTemplateCode(TO_ALL_DEFAULT_TEMPLATE_CODE);
+        }
+
+        // 公共的检查
+        if (!commonCheck(result, requestLogDTO))
+            return false;
+
+        return true;
+    }
+
+    /**
+     * @param result
+     * @param messageSendDTO
+     * @return
+     */
+    protected Boolean checkParam4app(BaseResult<Void> result, MessageSendDTO messageSendDTO)
+    {
+        if (messageSendDTO == null)
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_REQUEST_NULL, null);
+            return false;
+        }
+
+        return true;
+    }
+
+
+    /**
+     * 公共的
+     *
+     * @param result
+     * @param requestLogDTO
+     * @return
+     */
+    private Boolean commonCheck(BaseResult<Void> result, PushRequestLogDTO requestLogDTO)
+    {
+        // 校验消息模板标志
+        if (StringUtils.isBlank(requestLogDTO.getTemplateCode()))
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_TEMPLATE_CODE_NULL,
+                    JSONObject.toJSONString(requestLogDTO));
+            return false;
+        }
+
+        // 检查是否存在需要发送的数据
+        if (requestLogDTO.getDataMap() == null || requestLogDTO.getDataMap().isEmpty())
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_DATA_NULL, JSONObject.toJSONString(requestLogDTO));
+            return false;
+        }
+        return true;
+//        return checkData(result, requestLogDTO.getDataMap()) ? true : false;
+    }
+
+    /**
+     * 检查data
+     *
+     * @param result
+     * @return
+     */
+    private Boolean checkData(BaseResult<Void> result, Map<String, Object> map)
+    {
+        // 检查消息中必须存在的title和content、description
+        if (map.get(ConstantsDataKey.DATA_KEY_TITLE) == null || StringUtils.isBlank(map.get(ConstantsDataKey.DATA_KEY_TITLE).toString()))
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_DATA_TITLE_NULL, JSONObject.toJSONString(map));
+            return false;
+        }
+        if (map.get(ConstantsDataKey.DATA_KEY_CONTENT) == null || StringUtils.isBlank(map.get(ConstantsDataKey.DATA_KEY_CONTENT).toString()))
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_DATA_CONTENT_NULL, JSONObject.toJSONString(map));
+            return false;
+        }
+        if (map.get(ConstantsDataKey.DATA_KEY_DESCRIPTION) == null || StringUtils.isBlank(map.get(ConstantsDataKey.DATA_KEY_DESCRIPTION).toString()))
+        {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_DATA_DESCRIPTION_NULL, JSONObject.toJSONString(map));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 发送消息
+     *
+     * @param requestLogDTO
+     */
+    protected void sendMessage2Signgle(PushRequestLogDTO requestLogDTO)
+    {
+        cashierSender.sendMsgSync(JSON.toJSONBytes(requestLogDTO), null, MessageEventType.MSG_2_SINGLE.getCode(),
+                String.valueOf(requestLogDTO.getCustomerId()), 3);
+    }
+
+    /**
+     * 批量发送消息
+     *
+     * @param pushRequestLogMultiDTO
+     */
+    protected void sendMessage2Multi(PushRequestLogMultiDTO pushRequestLogMultiDTO)
+    {
+        cashierSender.sendMsgSync(JSON.toJSONBytes(pushRequestLogMultiDTO), null,
+                MessageEventType.MSG_2_MULTI.getCode(), String.valueOf(pushRequestLogMultiDTO.getTemplateCode()), 3);
+    }
+
+    /**
+     * 给第三方发送
+     *
+     * @param thirdMessageDTO
+     */
+    protected void sendMessage2Third(final ThirdMessageDTO thirdMessageDTO)
+    {
+        pool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                for (Long cusId : thirdMessageDTO.getCusIds())
+                {
+                    PushRequestLogDTO pushRequestLogDTO = new PushRequestLogDTO();
+                    pushRequestLogDTO.setCustomerId(cusId);
+                    pushRequestLogDTO.setDataMap(thirdMessageDTO.getDataMap());
+                    pushRequestLogDTO.setTemplateCode(ConstantsDataKey.THIRD_TEMPLATE_CODE);
+                    sendMessage2Signgle(pushRequestLogDTO);
+                }
+            }
+        });
+    }
+
+    /**
+     * 给所有人发送消息
+     *
+     * @param pushRequestLogDTO
+     */
+    protected void sendMessage2All(PushRequestLogDTO pushRequestLogDTO)
+    {
+        cashierSender.sendMsgSync(JSON.toJSONBytes(pushRequestLogDTO), null, MessageEventType.MSG_2_ALL.getCode(),
+                String.valueOf(pushRequestLogDTO.getTemplateCode()), 3);
+    }
+
+}

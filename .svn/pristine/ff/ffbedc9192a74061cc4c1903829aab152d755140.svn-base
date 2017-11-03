@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+  PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+  "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+
+<generatorConfiguration>
+
+	<context id="icare" targetRuntime="MyBatis3" defaultModelType="conditional">
+
+		<property name="javaFileEncoding" value="UTF-8" />
+		<commentGenerator
+			type="com.zhongan.icare.common.dao.generator.DbCommentGenerator">
+			<property name="suppressDate" value="true" />
+			<property name="suppressAllComments" value="false" />
+		</commentGenerator>
+	    <jdbcConnection driverClass="com.mysql.jdbc.Driver"
+			connectionURL="jdbc:mysql://rds6fbqrf6fbqrf.mysql.rds.aliyuncs.com:3306/icare_message_00" userId="za_dev_icarems"
+			password="za_dev_icarems_d24f12">
+		</jdbcConnection>
+<!-- 		<jdbcConnection driverClass="com.mysql.jdbc.Driver" -->
+<!-- 			connectionURL="jdbc:mysql://rdsuueafyuqbzfu.mysql.rds.aliyuncs.com:3306/icare_00" userId="icare_user_dev" -->
+<!-- 			password="icare_user_dev_ff793d"> -->
+<!-- 		</jdbcConnection> -->
+
+		<javaTypeResolver>
+			<property name="forceBigDecimals" value="false" />
+		</javaTypeResolver>
+
+		<javaModelGenerator targetPackage="com.zhongan.icare.message.push.example.dao.dataobject"
+			targetProject="src/main/java">
+			<property name="enableSubPackages" value="false" />
+			<property name="trimStrings" value="true" />
+			<property name="rootClass" value="com.zhongan.health.common.share.bean.BaseDataObject" />
+		</javaModelGenerator>
+
+		<sqlMapGenerator targetPackage="biz.mybatis.sqlmap"
+			targetProject="src/main/resources">
+			<property name="enableSubPackages" value="true" />
+		</sqlMapGenerator>
+
+		<javaClientGenerator type="XMLMAPPER"
+			targetPackage="com.zhongan.icare.message.push.example.dao" targetProject="src/main/java">
+			<property name="enableSubPackages" value="true" />
+			<property name="rootInterface" value="com.zhongan.icare.common.dao.ICommonDAO" />
+		</javaClientGenerator>
+
+<table tableName='cust_msg_push' domainObjectName='CustMsgPushDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+
+
+<!--<table tableName='cust_msg_push_cust_tag' domainObjectName='CustMsgPushCustTagDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+<table tableName='msg_push_detail' domainObjectName='MsgPushDetailDOExample' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+
+<table tableName='cust_msg_push_rel' domainObjectName='CustMsgPushRelDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+<table tableName='cust_msg_push_tag' domainObjectName='CustMsgPushTagDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+<table tableName='cust_msg_push_detail' domainObjectName='CustMsgPushDetailDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>
+<table tableName='cust_msg_push' domainObjectName='CustMsgPushDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/>-->
+
+
+<!-- <table tableName='acct_account' domainObjectName='AcctAccountDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_account_sub' domainObjectName='AcctAccountSubDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_credit_limit' domainObjectName='AcctCreditLimitDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_recharge' domainObjectName='AcctRechargeDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_sub_trans_log' domainObjectName='AcctSubTransLogDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_sub_trans_log_tmp' domainObjectName='AcctSubTransLogTmpDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_trans_log' domainObjectName='AcctTransLogDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_trans_log_tmp' domainObjectName='AcctTransLogTmpDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+<!-- <table tableName='acct_transfer' domainObjectName='AcctTransferDO' enableCountByExample='false' enableUpdateByExample='false' enableDeleteByExample='false' enableSelectByExample='false' selectByExampleQueryId='false'/> -->
+
+
+
+
+	</context>
+</generatorConfiguration>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="GB2312"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans>
+    <bean id="redisManager" class="com.zhongan.Bean.TyphonManager">
+        <constructor-arg value="${za.icare.redis.configserver1}"/>
+    </bean>
+    <bean id="onlineRedis" class="com.zhongan.health.common.cache.redis.OnlineRedis">
+        <property name="redisManager" ref="redisManager"/>
+        <property name="nameSpace" value="3"/>
+    </bean>
+</beans>

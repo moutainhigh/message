@@ -1,0 +1,77 @@
+server:
+  port: 8086
+
+DEPLOY_ENV: dev
+
+eureka:
+  instance:
+    leaseRenewalIntervalInSeconds: 1
+    instanceId: ${spring.application.name}:${spring.cloud.client.ipAddress}:${vcap.application.instance_id:${spring.application.instance_id:${random.value}}}
+    preferIpAddress: true
+  client:
+    registryFetchIntervalSeconds: 1
+    serviceUrl:
+      defaultZone:  http://mse.zhonganonline.com:8761/eureka/
+
+endpoints:
+  restart:
+    enabled: true
+  shutdown:
+    enabled: true
+  refresh:
+    enabled: true
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false 
+    serialization-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+08
+
+za:
+  eleme:
+    seed: ^&*YupdD8461!@#$er
+    skuId: 10004
+    merchantCode: eleme
+  cashier:
+    maxNotifyNum: 10
+    notifyIntervals: 5,10,30,60,60,180,360,360,360
+    schedule:
+      poolSize: 20
+    secSeed: ^&*YupdD8461!@#$er
+    wxpay:
+      appid: wx8f328cce2ba92268
+      mchId: 8888
+      secKey: 1111111111111111
+
+    
+mail:
+  from: cs@mail.zuifuli.io
+  
+#对balance进行控制
+ribbon:
+  eureka:
+    enabled: true
+    
+hystrix:
+  threadpool:
+    default:
+      coreSize: 50
+  command:
+    default:
+      execution:
+        timeout:
+          enabled: false
+        isolation:
+          thread:
+            timeoutInMilliseconds: 5000
+
+#消息推送ONS配置        
+push:
+  ons:
+    accessKey: N9S9RaY4r7P1z3Pt
+    secretKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+    onsAddr: http://jbponsaddr-internal.aliyun.com:8080/rocketmq/nsaddr4client-internal
+    producerId: PID-D-ICARE-EURUS-160801
+    topicId: D-ICARE-EURUS-160801            

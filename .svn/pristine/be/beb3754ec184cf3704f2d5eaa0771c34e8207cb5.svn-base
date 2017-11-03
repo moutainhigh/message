@@ -1,0 +1,554 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+
+import com.zhongan.health.common.utils.fel.expression.translate.logic.In;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.baidu.yun.core.log.YunLogEvent;
+import com.baidu.yun.core.log.YunLogHandler;
+import com.baidu.yun.push.auth.PushKeyPair;
+import com.baidu.yun.push.client.BaiduPushClient;
+import com.baidu.yun.push.constants.BaiduPushConstants;
+import com.baidu.yun.push.exception.PushClientException;
+import com.baidu.yun.push.exception.PushServerException;
+import com.baidu.yun.push.model.AddDevicesToTagRequest;
+import com.baidu.yun.push.model.AddDevicesToTagResponse;
+import com.baidu.yun.push.model.CreateTagRequest;
+import com.baidu.yun.push.model.CreateTagResponse;
+import com.baidu.yun.push.model.DeleteDevicesFromTagRequest;
+import com.baidu.yun.push.model.DeleteDevicesFromTagResponse;
+import com.baidu.yun.push.model.DeleteTagRequest;
+import com.baidu.yun.push.model.DeleteTagResponse;
+import com.baidu.yun.push.model.DeviceInfo;
+import com.baidu.yun.push.model.PushMsgToAllRequest;
+import com.baidu.yun.push.model.PushMsgToAllResponse;
+import com.baidu.yun.push.model.PushMsgToSingleDeviceRequest;
+import com.baidu.yun.push.model.PushMsgToSingleDeviceResponse;
+import com.baidu.yun.push.model.PushMsgToTagRequest;
+import com.baidu.yun.push.model.PushMsgToTagResponse;
+import com.google.gson.Gson;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushDO;
+import com.zhongan.icare.message.push.enums.BaiduMessageTypeEnum;
+import com.zhongan.icare.message.push.msg.PushMessageDO;
+import com.zhongan.icare.message.push.service.IBaiduPushService;
+import com.zhongan.icare.share.message.enm.BaiduDeviceTypeEnum;
+
+@Service
+@RestController
+@RequestMapping(value = "/v1/test")
+@Slf4j
+public class BaiduPushServiceImpl implements IBaiduPushService {
+    @Value("${msg.android.apiKey}")
+    private String          ANDROID_APIKEY;
+    @Value("${msg.android.secretKey}")
+    private String          ANDROID_SECRETKEY;
+    @Value("${msg.ios.apiKey}")
+    private String          IOS_APIKEY;
+    @Value("${msg.ios.secretKey}")
+    private String          IOS_SECRETKEY;
+    @Value("${msg.ios.status}")
+    private int             DEPOLYSTATUS;
+
+    // private ExecutorService pool = Executors.newCachedThreadPool();
+    @Autowired
+    private ExecutorService pool;
+
+    @Override
+    public boolean pushMsgToSingleDevice(final String channelId, final int deviceType, final MsgPushDO msgPush) {
+        final PushMessageDO message = new PushMessageDO();
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                if (deviceType == BaiduDeviceTypeEnum.ANDROID.getCode()) {
+                    message.setTitle(msgPush.getMessageTitle());
+                    message.setDescription(msgPush.getMessageDetail());
+                    message.setNotification_builder_id("0");
+                    pushAndroidSingleDeviceMsg(channelId, message);
+                } else if (deviceType == BaiduDeviceTypeEnum.IOS.getCode()) {
+                    Map<String, String> aps = new HashMap<String, String>();
+                    aps.put("alert", msgPush.getMessageTitle());
+                    aps.put("sound", "default");
+                    message.setAps(aps);
+                    pushIOSSingleDeviceMsg(channelId, message);
+                }
+            }
+
+        });
+
+        return false;
+    }
+
+    @RequestMapping(value = "/singlePush", method = { RequestMethod.POST, RequestMethod.GET })
+    public boolean pushToSingle(@RequestParam String channelId, @RequestParam int deviceType,
+                                @RequestParam String title, @RequestParam String detail) {
+        final PushMessageDO message = new PushMessageDO();
+        if (deviceType == BaiduDeviceTypeEnum.ANDROID.getCode()) {
+            message.setTitle(title);
+            message.setDescription(detail);
+            message.setNotification_builder_id("0");
+            return pushAndroidSingleDeviceMsg(channelId, message);
+        } else if (deviceType == BaiduDeviceTypeEnum.IOS.getCode()) {
+            Map<String, String> aps = new HashMap<String, String>();
+            aps.put("alert", title);
+            aps.put("sound", "default");
+            return pushIOSSingleDeviceMsg(channelId, message);
+        }
+        return false;
+    }
+
+    /**
+     * 向Android设备推送单个消息
+     */
+    private boolean pushAndroidSingleDeviceMsg(String channelId, PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            PushMsgToSingleDeviceRequest request = new PushMsgToSingleDeviceRequest().addChannelId(channelId)
+                    .addMessageType(BaiduMessageTypeEnum.INFORM.getCode()). //设置消息类型,0表示透传消息,1表示通知,默认为0.
+                    addMessage(new Gson().toJson(pushMessageDO)).addDeviceType(BaiduDeviceTypeEnum.ANDROID.getCode());
+            PushMsgToSingleDeviceResponse response = pushClient.pushMsgToSingleDevice(request);
+            log.info("msgId : {},sendTime : {}", response.getMsgId(), response.getSendTime());
+            return true;
+        } catch (PushClientException | PushServerException e) {
+            log.error("百度消息android个人推送异常:{}", e.getMessage());
+        }
+
+        return false;
+    }
+
+    /**
+     * 像ios设备推送单个消息
+     */
+
+    private boolean pushIOSSingleDeviceMsg(String channelId, PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            PushMsgToSingleDeviceRequest request = new PushMsgToSingleDeviceRequest().addChannelId(channelId)
+                    .addMessageType(BaiduMessageTypeEnum.INFORM.getCode()).addDeployStatus(DEPOLYSTATUS). //设置消息类型,0表示透传消息,1表示通知,默认为0.
+                    addMessage(new Gson().toJson(pushMessageDO)).addDeviceType(BaiduDeviceTypeEnum.IOS.getCode());
+            PushMsgToSingleDeviceResponse response = pushClient.pushMsgToSingleDevice(request);
+            log.info("msgId : {},sendTime : {}", response.getMsgId(), response.getSendTime());
+            return true;
+        } catch (PushClientException | PushServerException e) {
+            log.error("百度消息ios个人推送异常:{}", e.getMessage());
+        }
+
+        return false;
+    }
+
+    @Override
+    public void pushMsgToAll(MsgPushDO msgPush) {
+        final PushMessageDO pushMessageDO = createPushMsg(msgPush);
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                pushAllAndroidMsg(pushMessageDO);
+            }
+        });
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                pushAllIosMsg(pushMessageDO);
+            }
+
+        });
+    }
+
+    /**
+     * 向所有Android设备推送消息
+     */
+    private void pushAllAndroidMsg(PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            // 4. specify request arguments
+            PushMsgToAllRequest request = new PushMsgToAllRequest().addMsgExpires(new Integer(3600))
+                    .addMessageType(BaiduMessageTypeEnum.INFORM.getCode()).addMessage(new Gson().toJson(pushMessageDO))
+                    // 设置定时推送时间，必需超过当前时间一分钟，单位秒.实例70秒后推送
+                    .addSendTime(System.currentTimeMillis() / 1000 + 70)
+                    .addDeviceType(BaiduDeviceTypeEnum.ANDROID.getCode());
+            // 5. http request
+            PushMsgToAllResponse response = pushClient.pushMsgToAll(request);
+            // Http请求返回值解析
+            log.info("msgId : {},sendTime : {},timerId : {}", response.getMsgId(), response.getSendTime(),
+                    response.getTimerId());
+        } catch (PushClientException e) {
+            log.error("百度消息群推送异常:{}", e);
+        } catch (PushServerException e) {
+            log.error("百度消息群推送异常,requestId: {},errorCode: {},errorMsg: {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+
+        }
+
+    }
+
+    /**
+     * 向所有Ios设备推送消息
+     */
+    private void pushAllIosMsg(PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            // 4. specify request arguments
+            PushMsgToAllRequest request = new PushMsgToAllRequest().addMsgExpires(new Integer(3600))
+                    .addMessageType(BaiduMessageTypeEnum.INFORM.getCode()).addDepolyStatus(DEPOLYSTATUS)
+                    .addMessage(new Gson().toJson(pushMessageDO))
+                    // 设置定时推送时间，必需超过当前时间一分钟，单位秒.实例70秒后推送
+                    .addSendTime(System.currentTimeMillis() / 1000 + 70)
+                    .addDeviceType(BaiduDeviceTypeEnum.IOS.getCode());
+            // 5. http request
+            PushMsgToAllResponse response = pushClient.pushMsgToAll(request);
+            // Http请求返回值解析
+            log.info("msgId : {},sendTime : {},timerId : {}", response.getMsgId(), response.getSendTime(),
+                    response.getTimerId());
+        } catch (PushClientException e) {
+            log.error("百度消息群推送异常:{}", e);
+        } catch (PushServerException e) {
+            log.error("百度消息群推送异常,requestId: {},errorCode: {},errorMsg: {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+
+        }
+    }
+
+    /**
+     * 使用指定标签推送消息
+     */
+    @Override
+    public void pushMsgByTag(MsgPushDO msgPush, final String tagName) {
+        final PushMessageDO message = createPushMsg(msgPush);
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                pushAndroidMsgByTag(tagName, message);
+            }
+        });
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                PushIosMsgByTag(tagName, message);
+            }
+        });
+    }
+
+    /**
+     * 向指定标签的所有Android设备推送消息
+     */
+
+    private void pushAndroidMsgByTag(String tagName, PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            // 4. specify request arguments
+            // pushTagTpye = 1 for common tag pushing
+            PushMsgToTagRequest request = new PushMsgToTagRequest().addTagName(tagName)
+                    .addMsgExpires(new Integer(3600)).addMessageType(BaiduMessageTypeEnum.INFORM.getCode())
+                    // .addSendTime(System.currentTimeMillis() / 1000 + 70).
+                    .addMessage(new Gson().toJson(pushMessageDO)).addDeviceType(BaiduDeviceTypeEnum.ANDROID.getCode());
+            // 5. http request
+            PushMsgToTagResponse response = pushClient.pushMsgToTag(request);
+            // Http请求返回值解析
+            log.info("msgId : {},sendTime : {},timerId : {}", response.getMsgId(), response.getSendTime(),
+                    response.getTimerId());
+        } catch (PushClientException e) {
+            log.error("百度消息标签推送异常: tagName: {},{}", tagName, e);
+        } catch (PushServerException e) {
+            log.error("百度消息标签推送异常: tagName: {},requestId: {},errorCode: {},errorMsg: {}", tagName, e.getRequestId(),
+                    e.getErrorCode(), e.getErrorMsg());
+        }
+
+    }
+
+    /**
+     * 向指定标签的所有ios设备推送消息
+     */
+    private void PushIosMsgByTag(String tagName, PushMessageDO pushMessageDO) {
+        try {
+            BaiduPushClient pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            // 4. specify request arguments
+            // pushTagTpye = 1 for common tag pushing
+            PushMsgToTagRequest request = new PushMsgToTagRequest().addTagName(tagName)
+                    .addMsgExpires(new Integer(3600)).addMessageType(BaiduMessageTypeEnum.INFORM.getCode())
+                    .addDeployStatus(DEPOLYSTATUS)
+                    // .addSendTime(System.currentTimeMillis() / 1000 + 70).
+                    .addMessage(new Gson().toJson(pushMessageDO)).addDeviceType(BaiduDeviceTypeEnum.IOS.getCode());
+            // 5. http request
+            PushMsgToTagResponse response = pushClient.pushMsgToTag(request);
+            // Http请求返回值解析
+            log.info("msgId : {},sendTime : {},timerId : {}", response.getMsgId(), response.getSendTime(),
+                    response.getTimerId());
+        } catch (PushClientException e) {
+            log.error("百度消息标签推送异常: tagName: {},{}", tagName, e);
+        } catch (PushServerException e) {
+            log.error("百度消息标签推送异常: tagName: {},requestId: {},errorCode: {},errorMsg: {}", tagName, e.getRequestId(),
+                    e.getErrorCode(), e.getErrorMsg());
+        }
+    }
+
+    /**
+     * 根据指定标签名创建标签,0表示创建成功，1表示失败
+     */
+    @Override
+    @RequestMapping(value = "/createTage", method = { RequestMethod.GET, RequestMethod.POST })
+    public int createBaiduTag(@RequestParam final String tagName) {
+        final Integer result = 1;
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+
+                    int androidResult = createAndroidTag(tagName);
+                    int iosResult = createIOSTag(tagName);
+                    if (androidResult == 1 && iosResult == 1) {
+                        result.valueOf(0);
+                    }
+                } catch (Exception e) {
+                    log.error("", e);
+                }
+
+            }
+
+        });
+
+        return result;
+    }
+
+    @RequestMapping(value = "/pushByTag", method = { RequestMethod.GET, RequestMethod.POST })
+    public void pushByTag(@RequestParam String title, @RequestParam String detail) {
+        MsgPushDO msgPush = new MsgPushDO();
+        msgPush.setMessageTitle(title);
+        msgPush.setMessageDetail(detail);
+        this.pushMsgByTag(msgPush, "test");
+    }
+
+    @RequestMapping(value = "/addDevice", method = { RequestMethod.GET, RequestMethod.POST })
+    public void addDevice(String channelId) {
+        this.addDeviceToTag(new String[] { channelId }, "test", 3);
+    }
+
+    @Override
+    public int deleteBaiduTag(final String tagName) {
+        final Integer androidResult = 1;
+        final Integer iosResult = 1;
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final BaiduPushClient pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+                    // 4. specify request arguments
+                    DeleteTagRequest request = new DeleteTagRequest().addTagName(tagName).addDeviceType(
+                            Integer.valueOf(BaiduDeviceTypeEnum.ANDROID.getCode()));
+                    // 5. http request
+                    DeleteTagResponse response = pushClient.deleteTag(request);
+                    androidResult.valueOf(response.getResult());
+                    log.info("请求删除Android 标签: {},删除结果: {}", response.getTagName(), response.getResult());
+                } catch (PushClientException e) {
+                    log.error("删除Android标签失败:", e);
+                } catch (PushServerException e) {
+                    log.error("删除Android标签 requestId : {},errorCode : {}, errorMsg : {}", e.getRequestId(),
+                            e.getErrorCode(), e.getErrorMsg());
+                }
+            }
+
+        });
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final BaiduPushClient pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+                    // 4. specify request arguments
+                    DeleteTagRequest request = new DeleteTagRequest().addTagName(tagName).addDeviceType(
+                            Integer.valueOf(BaiduDeviceTypeEnum.IOS.getCode()));
+                    // 5. http request
+                    DeleteTagResponse response = pushClient.deleteTag(request);
+                    iosResult.valueOf(response.getResult());
+                    log.info("请求删除Ios 标签: {},删除结果: {}", response.getTagName(), response.getResult());
+                } catch (PushClientException e) {
+                    log.error("删除Ios标签失败:", e);
+                } catch (PushServerException e) {
+                    log.error("删除ios标签失败 requestId : {},errorCode : {}, errorMsg : {}", e.getRequestId(),
+                            e.getErrorCode(), e.getErrorMsg());
+                }
+            }
+
+        });
+
+        if (androidResult == 0 && iosResult == 0) {
+            return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * 向指定标签中添加设备，数组长度最大值为10
+     */
+    @Override
+    public void addDeviceToTag(String[] channelIds, String tagName, int deviceType) {
+
+        try {
+            BaiduPushClient pushClient = null;
+            if (BaiduDeviceTypeEnum.ANDROID.getCode() == deviceType) {
+                pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            } else {
+                pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            }
+
+            AddDevicesToTagRequest request = new AddDevicesToTagRequest().addTagName(tagName).addChannelIds(channelIds)
+                    .addDeviceType(deviceType);
+
+            // 5. http request
+            AddDevicesToTagResponse response = pushClient.addDevicesToTag(request);
+            // Http请求返回值解析
+            if (null != response) {
+                StringBuilder strBuilder = new StringBuilder();
+                strBuilder.append("devicesInTag：{");
+                List<?> devicesInfo = response.getDevicesInfoAfterAdded();
+                for (int i = 0; i < devicesInfo.size(); i++) {
+                    Object object = devicesInfo.get(i);
+                    if (i != 0) {
+                        strBuilder.append(",");
+                    }
+                    if (object instanceof DeviceInfo) {
+                        DeviceInfo deviceInfo = (DeviceInfo) object;
+                        strBuilder.append("{channelId:" + deviceInfo.getChannelId() + ",result:"
+                                + deviceInfo.getResult() + "}");
+                    }
+                }
+                strBuilder.append("}");
+                log.info("设备添加结果 : {}", strBuilder.toString());
+            }
+        } catch (PushClientException e) {
+            log.error("添加设备失败: ", e);
+        } catch (PushServerException e) {
+            log.error("添加设备失败 requestId : {},errorCode : {}, errorMsg : {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+
+        }
+
+    }
+
+    /**
+     * 向指定的标签中删除设备，数组长度最大为10
+     */
+    @Override
+    public void deleteDeviceFromTag(final String[] channelIds, final String tagName, final int deviceType) {
+
+        try {
+            BaiduPushClient pushClient = null;
+            if (BaiduDeviceTypeEnum.ANDROID.getCode() == deviceType) {
+                pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            } else {
+                pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            }
+            DeleteDevicesFromTagRequest request = new DeleteDevicesFromTagRequest().addTagName(tagName)
+                    .addChannelIds(channelIds).addDeviceType(deviceType);
+            // 5. http request
+            DeleteDevicesFromTagResponse response = pushClient.deleteDevicesFromTag(request);
+            // Http请求返回值解析
+            if (null != response) {
+                StringBuilder strBuilder = new StringBuilder();
+                strBuilder.append("devicesInfoAfterDel:{");
+                List<?> list = response.getDevicesInfoAfterDel();
+                for (int i = 0; i < list.size(); i++) {
+                    if (i != 0) {
+                        strBuilder.append(",");
+                    }
+                    Object object = list.get(i);
+                    if (object instanceof DeviceInfo) {
+                        DeviceInfo deviceInfo = (DeviceInfo) object;
+                        strBuilder.append("{channelId: " + deviceInfo.getChannelId() + ", result: "
+                                + deviceInfo.getResult() + "}");
+                    }
+                }
+                strBuilder.append("}");
+                log.info("删除标签结果: {}", strBuilder.toString());
+            }
+        } catch (PushClientException e) {
+            log.error("删除标签异常", e);
+        } catch (PushServerException e) {
+            log.error("删除标签异常 requestId : {},errorCode : {}, errorMsg : {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+        }
+
+    }
+
+    /**
+     * @param pushClient
+     * @param tagName
+     * @return 0表示创建成功，1表示创建失败
+     */
+    private int createAndroidTag(String tagName) {
+        try {
+            BaiduPushClient pushClient = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+            // 4. specify request arguments
+            CreateTagRequest request = new CreateTagRequest().addTagName(tagName).addDeviceType(
+                    BaiduDeviceTypeEnum.ANDROID.getCode());
+            // 5. http request
+            CreateTagResponse response = pushClient.createTag(request);
+            log.info("create android tagName : {},result : {}", response.getTagName(), response.getResult());
+            return response.getResult();
+        } catch (PushClientException e) {
+            log.error("创建Android标签失败:{}", e);
+        } catch (PushServerException e) {
+            log.error("创建Android标签失败,requestId: {},errorCode: {},errorMsg: {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+        }
+        return 1;
+    }
+
+    /**
+     * @param pushClient
+     * @param tagName
+     * @return 0表示创建成功，1表示创建失败
+     */
+    private int createIOSTag(String tagName) {
+        try {
+            BaiduPushClient pushClient = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+            // 4. specify request arguments
+            CreateTagRequest request = new CreateTagRequest().addTagName(tagName).addDeviceType(
+                    BaiduDeviceTypeEnum.IOS.getCode());
+            // 5. http request
+            CreateTagResponse response = pushClient.createTag(request);
+            log.info("create android tagName : {},result : {}", response.getTagName(), response.getResult());
+            return response.getResult();
+        } catch (PushClientException e) {
+            log.error("创建IOS标签失败:{}", e);
+        } catch (PushServerException e) {
+            log.error("创建IOS标签失败,requestId: {},errorCode: {},errorMsg: {}", e.getRequestId(), e.getErrorCode(),
+                    e.getErrorMsg());
+        }
+        return 1;
+    }
+
+    private PushMessageDO createPushMsg(MsgPushDO msgPush) {
+        PushMessageDO message = new PushMessageDO();
+        message.setTitle(msgPush.getMessageTitle());
+        message.setDescription(msgPush.getMessageDetail());
+        message.setNotification_builder_id("0");
+        Map<String, String> aps = new HashMap<String, String>();
+        aps.put("alert", msgPush.getMessageTitle());
+        aps.put("sound", "default");
+        return message;
+    }
+
+    private BaiduPushClient createPushClient(final String apiKey, final String secretKey) {
+        PushKeyPair pair = new PushKeyPair(apiKey, secretKey);
+        BaiduPushClient pushClient = new BaiduPushClient(pair, BaiduPushConstants.CHANNEL_REST_URL);
+        pushClient.setChannelLogHandler(new YunLogHandler() {
+            @Override
+            public void onHandle(YunLogEvent event) {
+                log.info("百度推送连接交互信息:{},apiKey : {}, secretKey: {}", event.getMessage(), apiKey, secretKey);
+            }
+
+        });
+        return pushClient;
+    }
+
+}

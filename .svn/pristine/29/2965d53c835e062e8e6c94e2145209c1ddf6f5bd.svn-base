@@ -1,0 +1,192 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import java.util.Collections;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.google.common.base.Preconditions;
+import com.zhongan.health.common.cache.RedisUtils;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.share.enm.YesOrNo;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.icare.message.push.constants.ConstantsDataKey;
+import com.zhongan.icare.message.push.dao.PushTemplateDAO;
+import com.zhongan.icare.message.push.dao.dataobject.PushTemplateDO;
+import com.zhongan.icare.share.message.dto.PushTemplateDTO;
+import com.zhongan.icare.share.message.service.IPushTemplateService;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RestController
+@Slf4j
+public class PushTemplateServiceImpl implements IPushTemplateService {
+    @Resource
+    PushTemplateDAO dao;
+
+    @Value("${za.icare.redis.templateCodeExpire}")
+    private String  templateCodeExpire;
+
+    @Value("${za.icare.redis.templateAllExpire}")
+    private int     templateAllExpire;
+
+    @Override
+    public long insert(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        Long id = dataobject.getId();
+        if (id == null) {
+            id = SequenceFactory.nextId(PushTemplateDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        String key = ConstantsDataKey.REDIS_TEMPLATE_CODE_PRE + dataobject.getCode();
+        RedisUtils.putObject(key, dataobject, Integer.parseInt(templateCodeExpire));
+        dao.insert(dataobject);
+        return id;
+    }
+
+    @Override
+    public long insertSelective(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        Long id = dataobject.getId();
+        if (id == null) {
+            id = SequenceFactory.nextId(PushTemplateDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insertSelective(dataobject);
+        return id;
+    }
+
+    @Override
+    public int updateByPrimaryKey(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        updateRedisInfo(dto);
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKey(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public int deleteByPrimaryKey(@RequestParam("id") long id) {
+        Preconditions.checkArgument(id > 0, "Id必须大于0");
+        PushTemplateDTO pushTemplateDTO = selectByPrimaryKey(id);
+        String key = ConstantsDataKey.REDIS_TEMPLATE_CODE_PRE + pushTemplateDTO.getCode();
+        RedisUtils.remove(key);
+        int cnt = dao.deleteByPrimaryKey(id);
+        return cnt;
+    }
+
+    @Override
+    public int updateByPrimaryKeySelective(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        updateRedisInfo(dto);
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKeySelective(dataobject);
+        return cnt;
+    }
+
+    private void updateRedisInfo(PushTemplateDTO dto) {
+        // 首先查询出来
+        PushTemplateDTO pushTemplateDTO = selectByPrimaryKey(dto.getId());
+        initDTO(pushTemplateDTO, dto);
+        String key = ConstantsDataKey.REDIS_TEMPLATE_CODE_PRE + pushTemplateDTO.getCode();
+        if (pushTemplateDTO.getIsDeleted().getValue() == YesOrNo.NO.getValue())
+            RedisUtils.putObject(key, pushTemplateDTO, Integer.parseInt(templateCodeExpire));
+        else
+            RedisUtils.remove(key);
+    }
+
+    /**
+     * 把旧的数值更新成新的
+     *
+     * @param oldDTO
+     * @param newDTO
+     */
+    private void initDTO(PushTemplateDTO oldDTO, PushTemplateDTO newDTO) {
+        if (oldDTO == null || newDTO == null)
+            return;
+        if (!StringUtils.isBlank(newDTO.getCode())) {
+            oldDTO.setCode(newDTO.getCode());
+        }
+        if (!StringUtils.isBlank(newDTO.getGroupCode())) {
+            oldDTO.setGroupCode(newDTO.getGroupCode());
+        }
+        if (!StringUtils.isBlank(newDTO.getName())) {
+            oldDTO.setName(newDTO.getName());
+        }
+        if (!StringUtils.isBlank(newDTO.getDescription())) {
+            oldDTO.setDescription(newDTO.getDescription());
+        }
+        if (newDTO.getMsgLayout() != null) {
+            oldDTO.setMsgLayout(newDTO.getMsgLayout());
+        }
+        if (!StringUtils.isBlank(newDTO.getMsgModel())) {
+            oldDTO.setMsgModel(newDTO.getMsgModel());
+        }
+        if (newDTO.getBelong() != null) {
+            oldDTO.setBelong(newDTO.getBelong());
+        }
+        if (newDTO.getIsDeleted() != null) {
+            oldDTO.setIsDeleted(newDTO.getIsDeleted());
+        }
+    }
+
+    @Override
+    public List<PushTemplateDTO> selectByCond(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        List<PushTemplateDO> dataobjects = dao.selectByCond(dataobject);
+        return BeanUtils.simpleDOAndBOConvert(dataobjects, PushTemplateDTO.class, null);
+    }
+
+    @Override
+    public int countByCond(@RequestBody PushTemplateDTO dto) {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushTemplateDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushTemplateDO.class);
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public PushTemplateDTO selectByPrimaryKey(@RequestParam("id") long id) {
+        Preconditions.checkArgument(id > 0, "id必须大于0");
+        PushTemplateDO dataobject = dao.selectByPrimaryKey(id);
+        return BeanUtils.simpleDOAndBOConvert(dataobject, PushTemplateDTO.class);
+    }
+
+    @Override
+    public List<PushTemplateDTO> selectAllTemplate(@RequestBody PushTemplateDTO pushTemplateDTO) {
+        String key = ConstantsDataKey.REDIS_TEMPLATE_All;
+        List<PushTemplateDTO> redisList = RedisUtils.getListExceptionAsNull(key, PushTemplateDTO.class);
+        if (redisList != null && !redisList.isEmpty()) {
+            return redisList;
+        }
+        return updateAllRedisInfo(null);
+    }
+
+    @Override
+    public List<PushTemplateDTO> updateAllRedisInfo(@RequestBody PushTemplateDTO pushTemplateDTO) {
+        String key = ConstantsDataKey.REDIS_TEMPLATE_All;
+        PushTemplateDTO templateDTO = new PushTemplateDTO();
+        List<PushTemplateDTO> pushTemplateDTOS = selectByCond(templateDTO);
+        if (pushTemplateDTOS == null) {
+            pushTemplateDTOS = Collections.emptyList();
+        }
+        RedisUtils.putListExceptionOk(key, pushTemplateDTOS, templateAllExpire);
+        return pushTemplateDTOS;
+    }
+}

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 只需配置好 log.dir 和 projectname 属性-->
+<configuration debug="false">
+    <property name="log.dir" value="${LOG_PATH}/icare-message"/>
+    <property name="projectname" value="icaremessage"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <encoder charset="UTF-8">
+            <pattern>%d [%thread] %-5p [%c] [%F:%L] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="infoAppender"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${log.dir}/logs/${HOSTNAME}-ss_micro_app_${projectname}_lt_info.log</file>
+        <!--	<filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>INFO</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
+            </filter> -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${log.dir}/logs/${HOSTNAME}_${projectname}-%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>%d [%thread] %-5p [%c] [%F:%L]
+                [trace=%X{X-Trace-Id:-},span=%X{X-Span-Id:-},parent=%X{X-Parent-Id:-},name=%X{X-Span-Name:-},app=%X{appname:-},begintime=%X{begintime:-},endtime=%X{fin-X1-time:-}]
+                - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <appender name="errorAppender"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${log.dir}/logs/${HOSTNAME}-ss_micro_app_${projectname}_lt_error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${log.dir}/logs/${HOSTNAME}_${projectname}_error-%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder charset="UTF-8">
+            <pattern>%d [%thread] %-5p [%c] [%F:%L]
+                [trace=%X{X-Trace-Id:-},span=%X{X-Span-Id:-},parent=%X{X-Parent-Id:-},name=%X{X-Span-Name:-},app=%X{appname:-},begintime=%X{begintime:-},endtime=%X{fin-X1-time:-}]
+                - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.apache">
+        <level value="INFO"/>
+        <appender-ref ref="errorAppender"/>
+        <appender-ref ref="infoAppender"/>
+    </logger>
+
+    <logger name="org.springframework">
+        <level value="INFO"/>
+        <appender-ref ref="errorAppender"/>
+        <appender-ref ref="infoAppender"/>
+    </logger>
+    <logger name="com.zhongan">
+        <level value="INFO"/>
+        <appender-ref ref="errorAppender"/>
+        <appender-ref ref="infoAppender"/>
+    </logger>
+
+    <logger name="com.netflix">
+        <level value="INFO"/>
+        <appender-ref ref="errorAppender"/>
+        <appender-ref ref="infoAppender"/>
+    </logger>
+
+    <root>
+        <level value="INFO"/>
+        <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="com.netflix.discovery.DiscoveryClient">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+
+    <logger name="org.springframework.cloud.sleuth.util.ExceptionUtils">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+
+    <logger name="com.zhongan.Bean.TyphonManager">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+
+    <logger name="org.springframework.context.annotation.ConfigurationClassPostProcessor">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+
+    <logger name="com.netflix.discovery.TimedSupervisorTask">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+
+    <logger name="org.springframework.context.annotation.AnnotationConfigApplicationContext">
+        <level value="ERROR"/>
+        <appender-ref ref="errorAppender"/>
+    </logger>
+</configuration>

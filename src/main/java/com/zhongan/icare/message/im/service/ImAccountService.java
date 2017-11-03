@@ -1,0 +1,17 @@
+package com.zhongan.icare.message.im.service;
+
+import com.zhongan.icare.message.im.bean.ImAccount;
+
+/**
+ * Created by za-raozhikun on 2017/8/14.
+ */
+public interface ImAccountService {
+
+    ImAccount addImAccount(ImAccount imAccount);
+
+
+    String encryptAccountId(String id);
+
+    String decryptAccountId(String id);
+
+}

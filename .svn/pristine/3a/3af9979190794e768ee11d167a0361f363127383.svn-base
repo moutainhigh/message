@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+<!-- 	<settings> -->
+<!-- 		<setting name="defaultExecutorType" value="BATCH" /> -->
+<!-- 		<setting name="defaultScriptingLanguage" value="bacthXMLLanguage" /> -->
+<!-- 	</settings> -->
+		<typeAliases>
+		<typeAlias
+			type="com.zhongan.health.common.utils.ibatis.driver.BatchLanguageDriver"
+			alias="bacthXMLLanguage" />
+	</typeAliases>
+	<mappers>
+		<mapper resource="biz/mybatis/sqlmap/MsgPushCustTagMapper.xml" />
+		<mapper resource="biz/mybatis/sqlmap/MsgPushDetailMapper.xml" />
+		<mapper resource="biz/mybatis/sqlmap/MsgPushMapper.xml" />
+		<mapper resource="biz/mybatis/sqlmap/MsgPushRelMapper.xml" />
+		<mapper resource="biz/mybatis/sqlmap/MsgPushTagMapper.xml" />		
+	</mappers>
+</configuration>

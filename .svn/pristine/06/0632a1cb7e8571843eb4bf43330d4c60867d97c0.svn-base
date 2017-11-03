@@ -1,0 +1,111 @@
+server: 
+  port: 8093
+
+logging: 
+  path: D:/log
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: g9DA8kvREgWPiGsKDUGtXfuF
+    secretKey: l5CxtkG8wnZrUQnkCESIdw25XSZ1kZSz
+  ios: 
+    apiKey: KebFUsAiZZtKVRhif0FEgpAw
+    secretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    newApiKey: KebFUsAiZZtKVRhif0FEgpAw
+    newSecretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    status: 1
+
+tddl: 
+  appname: ICARE_MESSAGE_TST_APP
+  groupname: ICARE_MESSAGE_TST_00_GROUP
+  path: "D:/log"
+ 
+sky:
+  star:
+    url: "http://10.139.36.106:3083/com.zhongan.pigeon.service.MessageSendService:1.0.0/" 
+  
+verify: 
+  code: 
+    geetest: 
+      api_url: "http://api.geetest.com"
+      baseUrl: "http://api.geetest.com"
+      captcha_id: e14090c90e0b20d8464e1341611a9abd
+      expire_in_second: 120
+      private_key: 3bf21e90ab7c776ff2ca756864038a5d
+      version: "3.2.0"
+za: 
+  icare: 
+    img: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+      publicEndpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/"
+      server: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/wujieshan-new"
+    message: 
+      email: 
+        valid: 
+          minute: 21600
+      push: 
+        consumerId: "icare-message_test-create"
+        consumerIdNew: "icare-message_test-create-new"
+        producerId: "icare-customer-create"
+        producerIdNew: "icare-customer-create-new"
+        server: "10.139.52.49:9092,10.139.52.57:9092,10.139.52.45:9092,192.168.13.78:8082"
+        topics: "icare-customer,icare-message"
+        sendToipcs: "KD-ICARE-MESSAGE-170222"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+      sms: 
+        individual:
+          templateNo: SMS_16710057
+        valid: 
+          minute: 5
+        verify: 
+          templateNo: SMS_14250345
+    oss: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+    redis: 
+      configserver1: "typhon-test-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+      templateAllExpire: 3600
+    sec: 
+      org: 
+        enterprise: 
+          id: 3
+    static: 
+      downPath: /api/customer/v1/attachement/download
+      filePath: "https://staticdaily.zhongan.com/website/health/ifuli/upload/"
+      ftpHost: "10.253.4.128"
+      ftpPassword: Static123
+      ftpPort: 22
+      ftpStaticDomain: staticdaily.zhongan.com
+      ftpTimeOut: 60000
+      ftpUserName: static
+      staticPath: /www/website/health/ifuli/upload/
+jdbc:
+  initialSize: 1
+  maxActive: 8
+  minIdle: 1
+  maxWait: 5000
+  testOnBorrow: true
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 120000
+  validationQuery: "select 1 from dual"
+  poolPreparedStatements: false
+  maxPoolPreparedStatementPerConnectionSize: 20
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

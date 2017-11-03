@@ -1,0 +1,139 @@
+package com.zhongan.icare.message.push.mq.handler;
+
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.health.common.utils.security.digest.MD5Utils;
+import com.zhongan.icare.share.message.dto.MessageDTO;
+import com.zhongan.icare.share.message.dto.MessageSendDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import com.zhongan.icare.share.message.dto.PushTemplateDTO;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import com.zhongan.icare.share.message.service.IPushGroupService;
+import com.zhongan.icare.share.message.service.IPushTemplateService;
+import lombok.extern.slf4j.Slf4j;
+
+import javax.annotation.Resource;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
+public class MessageMulti2MultiProcesser extends MessageCommonProcesser<MessageSendDTO>
+{
+
+    @Resource
+    private IPushGroupService pushGroupService;
+
+    @Resource
+    private IPushTemplateService pushTemplateService;
+
+    @Override
+
+    public String name()
+    {
+        return MessageEventType.MSG_2_MULTI_2_MULTI.getCode();
+    }
+
+    /**
+     * 计算
+     *
+     * @param messageSendDTO
+     * @return
+     */
+    @Override
+    protected String caclKey(MessageSendDTO messageSendDTO, String... keys)
+    {
+        StringBuilder ids = new StringBuilder("");
+        for (long id : messageSendDTO.getCustIds())
+        {
+            ids.append(id);
+        }
+        try
+        {
+            return MD5Utils.digestAsBase64(commonKey(keys) + ids + multi2multiKey(messageSendDTO));
+        } catch (Exception e)
+        {
+            log.error("", e);
+            return null;
+        }
+    }
+
+    /**
+     * 计算内容
+     *
+     * @param messageSendDTO
+     * @return
+     */
+    private String multi2multiKey(MessageSendDTO messageSendDTO)
+    {
+        List<MessageDTO> messages = messageSendDTO.getMessages();
+        if (messages == null || messages.isEmpty()) return "";
+
+        StringBuilder messageData = new StringBuilder("");
+        for (MessageDTO m : messageSendDTO.getMessages())
+        {
+            messageData.append(JSONObject.toJSONString(m.getDatas()));
+        }
+        return messageData.toString();
+    }
+
+    @Override
+    public void process(MessageSendDTO messageSendDTO)
+    {
+        // 首先做消息的解析
+        PushTemplateDTO pushTemplateDTO = loadTemplateByGroup(messageSendDTO.getGroupCode());
+        if (pushTemplateDTO == null)
+            return;
+
+        // 获取所有的模板信息
+        List<PushTemplateDTO> pushTemplateDTOS = pushTemplateService.selectAllTemplate(new PushTemplateDTO());
+        Map<String, PushTemplateDTO> templateMap = new HashMap<>();
+        for (PushTemplateDTO t : pushTemplateDTOS)
+        {
+            templateMap.put(t.getCode(), t);
+        }
+
+        // 循环发送
+        for (Long cusId : messageSendDTO.getCustIds())
+        {
+            for (MessageDTO m : messageSendDTO.getMessages())
+            {
+                PushRequestLogDTO requestLogDTO = new PushRequestLogDTO();
+                requestLogDTO.setCustomerId(cusId);
+                requestLogDTO.setDataMap(m.getDatas());
+                Map<String, Object> contextMap = m.getDatas();
+                // 组装contextMap和初始化PushRequestLogDTO对象
+                PushTemplateDTO pushTemplate = pushTemplateDTO;
+                if (StringUtils.isBlank(m.getTemplateCode()))
+                {
+                    pushTemplate = templateMap.get(m.getTemplateCode());
+                }
+                initLogDTO(requestLogDTO, pushTemplate, contextMap);
+                // 保存并且发送推送信息
+                insertAndSendMessage(requestLogDTO, contextMap);
+            }
+
+        }
+    }
+
+    @Override
+    public boolean match(String tag, String topic, String bizKey)
+    {
+        log.info("recieve kafka message tag : {}", tag);
+        return MessageEventType.MSG_2_MULTI_2_MULTI.getCode().equals(tag);
+    }
+
+    @Override
+    public void process(String tag, String bizKey, MessageSendDTO messageSendDTO)
+    {
+        // 首先检查是否是重复消费
+        String key = caclKey(messageSendDTO, bizKey);
+        if (isRepeatConsume(key))
+        {
+            log.warn("给多个人发送多条消息推送的重复消费，messageSendDTO:{},bizKey:{},key:{}", JSONObject.toJSONString(messageSendDTO), bizKey, key);
+            return;
+        }
+        process(messageSendDTO);
+    }
+
+}

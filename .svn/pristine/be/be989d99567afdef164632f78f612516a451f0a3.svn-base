@@ -1,0 +1,81 @@
+package com.zhongan.icare.message.push.web;
+
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.bean.PageDTO;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.icare.common.client.ClientInfo;
+import com.zhongan.icare.message.push.service.IPushRequestLogService;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.message.dto.PushRequestGroupDTO;
+import com.zhongan.icare.share.message.dto.PushRequestLogDTO;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import java.util.List;
+
+@RestController
+@RequestMapping(value = "/v2/messageGroup")
+@Slf4j
+public class PushSendMessageController extends MessageBaseController{
+
+    @Resource
+    private IPushRequestLogService  pushRequestLogService;
+
+    /**
+     * 获取会员的消息分组信息
+     * @return
+     */
+    @RequestMapping(value = "/loadGroupByCus", method = RequestMethod.GET)
+    public BaseResult<List<PushRequestGroupDTO>> loadGroupByCus() {
+        BaseResult<List<PushRequestGroupDTO>> result = new BaseResult<List<PushRequestGroupDTO>>();
+        ClientInfo client = null;
+        try {
+            // 检查client信息
+            client = loadClientInfo(result);
+            if (client == null) {
+                return result;
+            }
+            // 查询列表
+            List<PushRequestGroupDTO> pushRequestGroupDTOList = pushRequestLogService.selectRequestGroupByCus(client.getCustId());
+            ExceptionUtils.setSuccess(result, pushRequestGroupDTOList);
+        } catch (Exception e) {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_GROUP_INFO_EXCEPTION, JSONObject.toJSONString(client));
+            log.error("", e);
+        }
+        return result;
+    }
+
+    /**
+     * 根据分组id获取该分组下的所有消息
+     * @return
+     */
+    @RequestMapping(value = "/loadMessageByGroup", method = RequestMethod.GET)
+    public BaseResult<PageDTO<PushRequestLogDTO>> loadMessageByGroup(@RequestParam String groupCode, @RequestParam Integer pageSize,
+                                                                     @RequestParam Integer currentPage){
+        BaseResult<PageDTO<PushRequestLogDTO>> result = new BaseResult<PageDTO<PushRequestLogDTO>>();
+        ClientInfo client = null;
+        try{
+            // 检查client信息
+            client = loadClientInfo(result);
+            if (client == null) {
+                return result;
+            }
+
+            // 查询分组信息
+            PushRequestLogDTO searchBean = new PushRequestLogDTO();
+            searchBean.setCustomerId(client.getCustId());
+            searchBean.setGroupCode(groupCode);
+            searchBean.setPage(initPageInfo(pageSize,currentPage));
+            PageDTO<PushRequestLogDTO> pageInfo = pushRequestLogService.selectByCond(searchBean);
+            ExceptionUtils.setSuccess(result, pageInfo);
+        }catch (Exception e){
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_GROUP_MESSAGE_EXCEPTION, JSONObject.toJSONString(client));
+            log.error("", e);
+        }
+        return result;
+    }
+
+
+}

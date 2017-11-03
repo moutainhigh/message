@@ -1,0 +1,124 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+  client:
+    serviceUrl:
+      defaultZone: http://11494-iyunbao-ifuli-icare-api.test.za.net/eureka/
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: g9DA8kvREgWPiGsKDUGtXfuF
+    secretKey: l5CxtkG8wnZrUQnkCESIdw25XSZ1kZSz
+  ios: 
+    apiKey: KebFUsAiZZtKVRhif0FEgpAw
+    secretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    newApiKey: KebFUsAiZZtKVRhif0FEgpAw
+    newSecretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    status: 1
+
+customer:
+  token:
+    privateKey: MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAOo64zbPK/AAxbX8jp0AyLJM5Yme3ACK3WAk6Ft7nkdvTrVfhnrfIt0wDx+e8aKFwr8E3SoMb1Bg0CYYxOiR7HzcEIe2xTKTzikG3ZaTXnW2VgZj94EA6k5XBA3HlDr8quc67L4XWyj253dv2TmcSfNPf9fxH185FJT6glnHObw5AgMBAAECgYBdH9yGRgfp++SfXjI1KcKhYQFBne9KJ+ur9gCLnrJnJFHeuoP1BhIObrUUlVTskNHEsGJd/WOkSVl4TBC9hobGus1mq7DkEcqQxqOm/49Yny7UMqljcHhuzSUM3HwIZ1aum1btRs6B1ZuT70Gkdz9wGEkZvrK54UyvbSdUW/euoQJBAPvJEzWvILLYP5D0X5d75YMDRmRV8X4HSGqux5yoo7muJ819kCGIGXdph2YnARCNtaiztfLqMUBz0U/+yE0c6r8CQQDuJpX6ImmR5wgGLU43y1/gP53zPGvPAxlcdRZdIwjOMl+EBEcOT3pafy4annSqghVVHszK6qlBRLd3Cw9Iee8HAkEA4Ib8tGDJXfLtLIxfOizoDB69hPgG9AX2k/vsUU0pQ4mEQQD5qI0/eHcIoRWjI2nbVud7F3W0Ge+t9hIT+IAS7QJAAcI/MU23weAW6xTCkx7pYlqV7AnyMeEv+sLSm3V6xysQEYWGkNB9ctWlnYS2D9xOFAbaNFVvUpATWsm2Hy7nWQJAddKR12lTGHlig+rlTjQ5rv5+iYx066PsSphJqs1jFziz8RWzg+gfeA/EcCMdcdtLshb2RclYsL+3NZUDbBj/Rg==
+    
+tddl: 
+  appname: ICARE_MESSAGE_TST_APP
+  groupname: ICARE_MESSAGE_TST_00_GROUP
+  path: /alidata1/admin/
+  
+verify: 
+  code: 
+    geetest: 
+      api_url: "http://api.geetest.com"
+      baseUrl: "http://api.geetest.com"
+      captcha_id: e14090c90e0b20d8464e1341611a9abd
+      expire_in_second: 120
+      private_key: 3bf21e90ab7c776ff2ca756864038a5d
+      version: "3.2.0"
+      
+sky:
+  star:
+    url: "http://10.139.36.106:3083/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+          
+za: 
+  icare: 
+    img: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+      publicEndpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/"
+      server: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/wujieshan-new"
+    message: 
+      email: 
+        valid: 
+          minute: 21600
+      push: 
+        server: "10.139.52.49:9092,10.139.52.57:9092,10.139.52.45:9092,192.168.13.78:8082"
+        producerId: "icare-customer-create"
+        producerIdNew: "icare-customer-create-new"
+        consumerId: "icare-message_test-create"
+        consumerIdNew: "icare-message_test-create-new"
+        topics: "icare-message"
+        sendToipcs: "KD-ICARE-MESSAGE-170222"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+      sms: 
+        individual: 
+          templateNo: SMS_16710057
+        valid: 
+          minute: 5
+        verify: 
+          templateNo: SMS_14250345
+    oss: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+    redis: 
+      configserver1: "typhon-test-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+      templateAllExpire: 3600
+    sec: 
+      org: 
+        enterprise: 
+          id: 3
+    static: 
+      downPath: /api/customer/v1/attachement/download
+      filePath: "https://staticdaily.zhongan.com/website/health/ifuli/upload/"
+      ftpHost: "10.253.4.128"
+      ftpPassword: Static123
+      ftpPort: 22
+      ftpStaticDomain: staticdaily.zhongan.com
+      ftpTimeOut: 60000
+      ftpUserName: static
+      staticPath: /www/website/health/ifuli/upload/
+jdbc:
+  initialSize: 1
+  maxActive: 8
+  minIdle: 1
+  maxWait: 5000
+  testOnBorrow: true
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 120000
+  validationQuery: "select 1 from dual"
+  poolPreparedStatements: false
+  maxPoolPreparedStatementPerConnectionSize: 20
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

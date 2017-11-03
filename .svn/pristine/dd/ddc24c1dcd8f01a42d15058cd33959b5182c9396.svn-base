@@ -1,0 +1,185 @@
+package com.zhongan.icare.message.push.mq.handler;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.enm.YesOrNo;
+import com.zhongan.health.common.utils.StringUtils;
+import com.zhongan.health.common.utils.security.digest.MD5Utils;
+import com.zhongan.icare.share.message.dto.*;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import com.zhongan.icare.share.message.service.IPushGroupService;
+import com.zhongan.icare.share.message.service.IPushTemplateService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.Resource;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+
+@Slf4j
+public class MessageMulti2MultiProcesser extends MessageCommonProcesser<Long>
+{
+
+    @Autowired
+    private ExecutorService threadPool;
+
+    @Resource
+    private IPushTemplateService pushTemplateService;
+
+    @Resource
+    private IPushGroupService groupService;
+
+    @Override
+
+    public String name()
+    {
+        return MessageEventType.MSG_2_MULTI_2_MULTI.getCode();
+    }
+
+    /**
+     * 计算
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    protected String caclKey(Long id, String... keys)
+    {
+        try
+        {
+            return MD5Utils.digestAsBase64(commonKey(keys) + id);
+        } catch (Exception e)
+        {
+            log.error("", e);
+            return null;
+        }
+    }
+
+//    /**
+//     * 计算内容
+//     *
+//     * @param messageSendDTO
+//     * @return
+//     */
+//    private String multi2multiKey(MessageSendDTO messageSendDTO)
+//    {
+//        List<MessageDTO> messages = messageSendDTO.getMessages();
+//        if (messages == null || messages.isEmpty())
+//            return "";
+//
+//        StringBuilder messageData = new StringBuilder("");
+//        for (MessageDTO m : messageSendDTO.getMessages())
+//        {
+//            messageData.append(JSONObject.toJSONString(m.getDatas()));
+//        }
+//        return messageData.toString();
+//    }
+
+    @Override
+    public void process(Long id)
+    {
+        PushRequestDataDTO pushRequestDataDTO= queryRequestData(id);
+        if(pushRequestDataDTO == null) return;
+        // 判断一下是否已经消费
+        if(YesOrNo.YES.getCode().equals(pushRequestDataDTO.getIsDeleted().getCode())){
+            log.info("<<<<<<已经消费过MessageMulti2MultiProcesser，id={}",id);
+            return;
+        }
+        log.info(">>>>>>开始消费MessageMulti2MultiProcesser.process,id={}",id);
+        MessageSendDTO messageSendDTO = JSONObject.parseObject(pushRequestDataDTO.getData(),MessageSendDTO.class);
+        if(!deleteRequestData(id))return;
+        String groupCode = messageSendDTO.getGroupCode();
+        if (StringUtils.isEmpty(groupCode))
+        {
+            log.info("消息发送者不存在:{}", JSON.toJSONString(messageSendDTO));
+            return;
+        }
+        PushGroupDTO group = groupService.selectByGroupCode(groupCode);
+        if (group == null)
+        {
+            log.info("消息发送者不存在:{}", groupCode);
+            return;
+        }
+
+        // 获取所有的模板信息
+        List<PushTemplateDTO> pushTemplateDTOS = pushTemplateService.selectAllTemplate(new PushTemplateDTO());
+        final Map<String, PushTemplateDTO> templateMap = new HashMap<>();
+        for (PushTemplateDTO t : pushTemplateDTOS)
+        {
+            templateMap.put(t.getCode(), t);
+        }
+
+        // 循环发送
+        for (Long cusId : messageSendDTO.getCustIds())
+        {
+            for (MessageDTO m : messageSendDTO.getMessages())
+            {
+                if (StringUtils.isEmpty(m.getTemplateCode()) || !templateMap.containsKey(m.getTemplateCode()))
+                {
+                    log.info("模板无法查找:{}", JSON.toJSONString(m));
+                } else
+                {
+                    PushRequestLogDTO requestLogDTO = new PushRequestLogDTO();
+                    requestLogDTO.setCustomerId(cusId);
+                    Map<String, Object> contextMap = m.getDatas();
+                    requestLogDTO.setDataMap(contextMap);
+                    requestLogDTO.setTemplateCode(m.getTemplateCode());
+                    requestLogDTO.setGroupCode(messageSendDTO.getGroupCode());
+                    log.info(">>>>>>MessageMulti2MultiProcesser-process,requestLogDTO={}", JSONObject.toJSONString(requestLogDTO));
+                    // 组装contextMap和初始化PushRequestLogDTO对象
+                    initLogDTO(requestLogDTO, templateMap.get(m.getTemplateCode()), contextMap);
+                    // 保存并且发送推送信息
+                    insertAndSendMessage(requestLogDTO, contextMap);
+                }
+
+            }
+        }
+        //            final Long cusIdFinal = cusId;
+        //            pool.execute(new Runnable() {
+        //                @Override
+        //                public void run() {
+        //                    for (MessageDTO m : messageSendDTO.getMessages()) {
+        //                        if (StringUtils.isEmpty(m.getTemplateCode()) || !templateMap.containsKey(m.getTemplateCode())) {
+        //                            log.info("模板无法查找:{}", JSON.toJSONString(m));
+        //                        } else {
+        //                            PushRequestLogDTO requestLogDTO = new PushRequestLogDTO();
+        //                            requestLogDTO.setCustomerId(cusIdFinal);
+        //                            requestLogDTO.setDataMap(m.getDatas());
+        //                            Map<String, Object> contextMap = m.getDatas();
+        //                            // 组装contextMap和初始化PushRequestLogDTO对象
+        //                            initLogDTO(requestLogDTO, templateMap.get(m.getTemplateCode()), contextMap);
+        //                            // 保存并且发送推送信息
+        //                            insertAndSendMessage(requestLogDTO, contextMap);
+        //                        }
+        //
+        //                    }
+        //                }
+        //            });
+    }
+
+    //    }
+
+    @Override
+    public boolean match(String tag, String topic, String bizKey)
+    {
+        log.info("recieve kafka message tag : {}", tag);
+        return MessageEventType.MSG_2_MULTI_2_MULTI.getCode().equals(tag);
+    }
+
+    @Override
+    public void process(String tag, String bizKey, Long id)
+    {
+        // 首先检查是否是重复消费
+        String key = caclKey(id, bizKey);
+        if (isRepeatConsume(key))
+        {
+            log.warn("给多个人发送多条消息推送的重复消费，id:{},bizKey:{},key:{}", id,
+                    bizKey, key);
+            return;
+        }
+        process(id);
+    }
+
+}

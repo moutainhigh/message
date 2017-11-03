@@ -1,0 +1,105 @@
+package com.zhongan.icare.message.push.util;
+
+import com.baidu.yun.core.log.YunLogEvent;
+import com.baidu.yun.core.log.YunLogHandler;
+import com.baidu.yun.push.auth.PushKeyPair;
+import com.baidu.yun.push.client.BaiduPushClient;
+import com.baidu.yun.push.constants.BaiduPushConstants;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+/**
+ * Created by zhangxiaojun on 2016/12/13.
+ */
+@Component
+@Slf4j
+public class BaiduPushClientUtils
+{
+
+    @Value("${msg.android.apiKey}")
+    private String ANDROID_APIKEY;
+    @Value("${msg.android.secretKey}")
+    private String ANDROID_SECRETKEY;
+    @Value("${msg.ios.newApiKey}")
+    private String IOS_APIKEY;
+    @Value("${msg.ios.newSecretKey}")
+    private String IOS_SECRETKEY;
+
+    private static volatile BaiduPushClient androidPushClient = null;
+
+    private static final Object androidPushClientLOCK = "androidPushClient";
+
+    private static volatile BaiduPushClient iosPushClient = null;
+
+    private static final Object iosPushClientLOCK = "iosPushClient";
+
+    /**
+     * 获取安卓的百度推送client
+     *
+     * @return
+     */
+    public BaiduPushClient loadAndroidPushClient()
+    {
+        return loadCommonCline(androidPushClientLOCK);
+    }
+
+    /**
+     * 获取IOS的百度推送client
+     *
+     * @return
+     */
+    public BaiduPushClient loadIosPushClient()
+    {
+        return loadCommonCline(iosPushClientLOCK);
+    }
+
+
+    private BaiduPushClient loadCommonCline(Object lock)
+    {
+        BaiduPushClient client = androidPushClient;
+        if (iosPushClientLOCK.equals(lock)) client = iosPushClient;
+        if (client == null)
+        {
+            if (lock == null) return null;
+            synchronized (lock)
+            {
+                if (client == null)
+                {
+                    if (androidPushClientLOCK.equals(lock))
+                    {
+                        client = createPushClient(ANDROID_APIKEY, ANDROID_SECRETKEY);
+                        androidPushClient = client;
+                    } else
+                    {
+                        client = createPushClient(IOS_APIKEY, IOS_SECRETKEY);
+                        iosPushClient = client;
+                    }
+                } else return client;
+            }
+        }
+        return client;
+    }
+
+    /**
+     * 创建pushClient公共的部门
+     *
+     * @param apiKey
+     * @param secretKey
+     * @return
+     */
+    public static BaiduPushClient createPushClient(final String apiKey, final String secretKey)
+    {
+        PushKeyPair pair = new PushKeyPair(apiKey, secretKey);
+        BaiduPushClient pushClient = new BaiduPushClient(pair, BaiduPushConstants.CHANNEL_REST_URL);
+        pushClient.setChannelLogHandler(new YunLogHandler()
+        {
+            @Override
+            public void onHandle(YunLogEvent event)
+            {
+                log.info("百度推送连接交互信息:{},apiKey : {}, secretKey: {}", event.getMessage(), apiKey, secretKey);
+            }
+        });
+        return pushClient;
+    }
+}

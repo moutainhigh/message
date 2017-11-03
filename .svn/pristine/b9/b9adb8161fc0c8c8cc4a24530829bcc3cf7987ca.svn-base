@@ -1,0 +1,15 @@
+package com.zhongan.icare.message.push.service;
+
+import com.zhongan.icare.share.message.dto.PushBaiduChannelDTO;
+import org.springframework.cloud.netflix.feign.FeignClient;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+@Service
+@FeignClient(name = "icare-message")
+public interface IPushBaiduService
+{
+    public boolean pushMsgToSingleDevice(PushBaiduChannelDTO baiduChannelDTO, Map<String, Object> contextMap);
+
+}

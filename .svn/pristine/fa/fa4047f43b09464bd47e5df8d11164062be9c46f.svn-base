@@ -1,0 +1,149 @@
+package com.zhongan.icare.message.star;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.annotation.PostConstruct;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.constants.CommonErrorCode;
+
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 邮件REST API
+ * 
+ * @author lirong
+ * @date 2016-6-24
+ */
+@RestController
+@RequestMapping(path = "/v1/mail", consumes = { "application/json" })
+@Slf4j
+public class MailController {
+    @Autowired
+    private StarHttpTemplate    starHttpTemplate;
+    @Value("${mail.from}")
+    private String              defaultMailFrom;
+    @Value("${za.icare.oss.accessId}")
+    private String              ossAccessId;
+    @Value("${za.icare.oss.accessKey}")
+    private String              ossAccessKey;
+    @Value("${za.icare.oss.endpoint}")
+    private String              ossEndpoint;
+    @Value("${za.icare.oss.bucketName}")
+    private String              ossBucketName;
+
+    private Map<String, String> ossAccessData;
+
+    /**
+     * 发送邮件
+     */
+    @RequestMapping(method = RequestMethod.POST)
+    public BaseResult<Map<String, String>> sendMail(@RequestBody String jsonBody) {
+        log.info("收到发送邮件请求: info={}", jsonBody);
+        BaseResult<Map<String, String>> result = new BaseResult<>();
+
+        // 校验参数
+        if (StringUtils.isEmpty(jsonBody)) {
+            log.info("发送邮件失败, 请求内容不能为空");
+            result.setCode(CommonErrorCode.CMN_ILLEGAL_ARG.getCode());
+            result.setMessage("请求内容不能为空");
+            return result;
+        }
+        JSONObject data;
+        try {
+            data = JSON.parseObject(jsonBody);
+        } catch (Exception e) {
+            log.info("发送邮件失败, 请求内容不是合法的JSON数据");
+            result.setCode(CommonErrorCode.CMN_ILLEGAL_ARG.getCode());
+            result.setMessage("请求内容不是合法的JSON数据");
+            return result;
+        }
+        String toMails = data.getString("toMails");
+        if (StringUtils.isEmpty(toMails)) {
+            log.info("发送邮件失败, 收件人不能为空");
+            result.setCode(CommonErrorCode.CMN_ILLEGAL_ARG.getCode());
+            result.setMessage("收件人不能为空");
+            return result;
+        }
+        String fromMail = data.getString("fromMail");
+        if (StringUtils.isEmpty(fromMail)) {
+            fromMail = defaultMailFrom;
+        }
+        String title = data.getString("title");
+        if (StringUtils.isEmpty(title)) {
+            log.info("发送邮件失败, 邮件主题不能为空");
+            result.setCode(CommonErrorCode.CMN_ILLEGAL_ARG.getCode());
+            result.setMessage("邮件主题不能为空");
+            return result;
+        }
+        String bodyHtml = data.getString("bodyHtml");
+        if (StringUtils.isEmpty(bodyHtml)) {
+            log.info("发送邮件失败, 邮件内容不能为空");
+            result.setCode(CommonErrorCode.CMN_ILLEGAL_ARG.getCode());
+            result.setMessage("邮件内容不能为空");
+            return result;
+        }
+        String ossFilePath = data.getString("ossFilePath");
+
+        // 调用满天星发送邮件
+        try {
+            Map<String, String> postData = new HashMap<String, String>();
+
+            Map<String, Object> map = new LinkedHashMap<String, Object>();
+            map.put("toMails", toMails);
+            map.put("title", title);
+            map.put("bodyHtml", bodyHtml);
+            map.put("fromMail", fromMail);
+            map.put("userName", "icare");
+            if (StringUtils.isNotBlank(ossFilePath)) {
+                map.put("attachment", ossFilePath);
+                map.put("parameters", JSON.toJSONString(ossAccessData));
+            }
+            Object[] obj = new Object[] { map };
+            Object[] type = new Object[] { "java.lang.String" };
+            postData.put("ArgsObjects", JSON.toJSONString(obj));
+            postData.put("ArgsTypes", JSON.toJSONString(type));
+
+            String response = starHttpTemplate.postForm4Hsf("sendEmail", postData);
+            JSONObject responseJson = JSON.parseObject(response);
+            Boolean sendResult = responseJson.getBoolean("isSuccess");
+            if (sendResult) {
+                log.info("发送邮件成功");
+                result.setCodeSuccess();
+                result.setMessage("发送邮件成功");
+            } else {
+                log.info("发送邮件失败, response={}", response);
+                String errorMessage = responseJson.getString("errorMessage");
+                result.setCode(CommonErrorCode.CMN_THIRD_ERROR.getCode());
+                result.setMessage("发送邮件失败，" + errorMessage);
+            }
+        } catch (Exception e) {
+            log.info("发送邮件失败", e);
+            result.setCode(CommonErrorCode.CMN_BUZ_ERROR.getCode());
+            result.setMessage("发送邮件失败，" + e.getMessage());
+        }
+
+        return result;
+    }
+
+    @PostConstruct
+    public void init() {
+        ossAccessData = new LinkedHashMap<>();
+        ossAccessData.put("accessId", ossAccessId);
+        ossAccessData.put("accessKey", ossAccessKey);
+        ossAccessData.put("endpoint", ossEndpoint);
+        ossAccessData.put("bucketName", ossBucketName);
+    }
+}

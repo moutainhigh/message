@@ -1,0 +1,83 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: tQXhFbWPoPXYrzAkP39j7GUD
+    secretKey: qtQaMkYAwmdbV99hxvoLPmH9bXCq653B
+  ios: 
+    apiKey: KebFUsAiZZtKVRhif0FEgpAw
+    secretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    newApiKey: KebFUsAiZZtKVRhif0FEgpAw
+    newSecretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    status: 1
+
+customer:
+  token:
+    privateKey: MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAgdQaGiqK3OdXeDsVz+pa35xyfPw1/Az6CDgUL31zydDDdAmKbeBK/+umiTm1HkqWKMsHp6GPXfn5mBI0ukuygwIDAQABAkA5hSt7ZFXZwXVzg1oKoB5a7AmdbnDMl0M/2Pi4gbCHPSF3khjz1/oKHxxFtrImMKmYmRejdf4Djouy0+P0ZXfhAiEAvLTfS1H2DSD/HSXiS9xar1/lwPmDdtZPDAb6WsAY5W0CIQCwIDjytF06tqy35bslbqFdYAY/jSoJxl3gipKN+bExrwIhALpmb6sW6tVNIrLIGSCWKX3SXECiNxnL14kp22KJHg6BAiAGeVi+iyS2KMrWg6pKaPOjhAkWwvCdpV4EB/P1Jg1+XwIhAJKmmBa3rBV4MAB8W8EzSyyl736EIOQlQKTCtVOzrvDI
+
+cluster:
+  ips: 10.253.11.171;10.139.99.60;10.139.99.248;10.253.107.21;10.253.107.50
+
+tddl: 
+  appname: ICARE_MESSAGE_PRE_APP
+  groupname: ICARE_MESSAGE_PRE_00_GROUP
+  
+sky:
+  star:
+    url: "http://10.139.106.139:8086/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+     
+za: 
+  icare: 
+    message: 
+      push: 
+        consumerId: icare-message_prd-create
+        consumerIdNew: icare-message_prd-create-new
+        producerId: icare-message-create
+        producerIdNew: icare-message-create-new
+        server: "10.139.97.165:9092"
+        topics: "pre-icare-message-all"
+        sendToipcs: "KS-ICARE-MESSAGE-170222"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+    redis: 
+      configserver1: "typhon-uat-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+      templateAllExpire: 3600
+      sentinelServers: "10.253.109.237:26379,10.253.109.237:26380,10.253.109.238:26381"
+    oss:
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      endpoint: http://oss-cn-hzjbp-a-internal.aliyuncs.com
+      bucketName: wujieshan-new
+jdbc:
+  initialSize: 1
+  maxActive: 8
+  minIdle: 1
+  maxWait: 5000
+  testOnBorrow: true
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 120000
+  validationQuery: "select 1 from dual"
+  poolPreparedStatements: false
+  maxPoolPreparedStatementPerConnectionSize: 20
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

@@ -1,0 +1,41 @@
+package com.zhongan.icare.message.push.util;
+
+import java.util.Calendar;
+import java.util.Date;
+
+public class TimeConvertUtil {
+    public static String formatDisplayTime(Date date) {
+        long current = System.currentTimeMillis();
+        long stamp = (current - date.getTime()) / 1000;
+        StringBuffer sb = new StringBuffer();
+        if (isYesterday(date)) {
+            return sb.append("昨天").toString();
+        }
+        if (stamp < 60L) {
+            return sb.append(stamp).append("秒前").toString();
+        } else {
+            stamp = stamp / 60;
+            if (stamp < 60L) {
+                return sb.append(stamp).append("分钟前").toString();
+            } else {
+                stamp = stamp / 60;
+                if (stamp < 24) {
+                    return sb.append(stamp).append("小时前").toString();
+                } else {
+                    stamp = stamp / 24;
+                    return sb.append(stamp).append("天前").toString();
+                }
+            }
+        }
+    }
+
+    private static boolean isYesterday(Date date) {
+        Calendar now = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+        if (now.get(Calendar.YEAR) == cal.get(Calendar.YEAR) && now.get(Calendar.MONTH) == cal.get(Calendar.MONTH)) {
+            return now.get(Calendar.DAY_OF_MONTH) - cal.get(Calendar.DAY_OF_MONTH) == 1;
+        }
+        return false;
+    }
+}

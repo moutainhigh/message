@@ -1,0 +1,95 @@
+package com.zhongan.icare.message.push.mq.handler;
+
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.utils.security.digest.MD5Utils;
+import com.zhongan.icare.message.push.constants.ConstantsDataKey;
+import com.zhongan.icare.message.push.enums.BaiduMessageTypeEnum;
+import com.zhongan.icare.share.message.dto.PushMessageDTO;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+@Slf4j
+public class Push2SingleProcesser extends MessageCommonProcesser<PushMessageDTO>
+{
+
+    @Override
+    public String name()
+    {
+        return MessageEventType.PUSH_2_SINGLE.getCode();
+    }
+
+    /**
+     * 计算
+     *
+     * @param pushMessageDTO
+     * @return
+     */
+    @Override
+    protected String caclKey(PushMessageDTO pushMessageDTO, String... keys)
+    {
+        Map<String, Object> data = pushMessageDTO.getData();
+        StringBuilder dataS = new StringBuilder();
+        if (data != null && !data.isEmpty())
+        {
+            Iterator<Map.Entry<String, Object>> iterator = data.entrySet().iterator();
+            while (iterator.hasNext())
+            {
+                Map.Entry<String, Object> next = iterator.next();
+                dataS.append(next.getKey()).append(next.getValue());
+            }
+        }
+        try
+        {
+            return MD5Utils.digestAsBase64(pushMessageDTO.getCustomerId().toString() + pushMessageDTO.getTitle() + pushMessageDTO.getDescription() + dataS.toString());
+        } catch (Exception e)
+        {
+            log.error("", e);
+            return null;
+        }
+    }
+
+    @Override
+    public void process(PushMessageDTO pushMessageDTO)
+    {
+        // 组装参数
+        Map<String, Object> contextMap = new HashMap();
+        Integer msgType = pushMessageDTO.getMsgType() == null ? BaiduMessageTypeEnum.TOUCHUAN.getCode() : BaiduMessageTypeEnum.INFORM.getCode();
+        contextMap.put(ConstantsDataKey.REQUEST_MESSAGE_TYPE, msgType);
+        contextMap.put(ConstantsDataKey.DATA_KEY_TITLE, pushMessageDTO.getTitle());
+        contextMap.put(ConstantsDataKey.ANDROID_NOTIFICATION_BASIC_STYLE, 7);// 目前默认7
+        contextMap.put(ConstantsDataKey.ANDROID_OPEN_TYPE, 0);// 目前默认0
+        contextMap.put(ConstantsDataKey.ANDROID_URL, "http://developer.baidu.com");
+        contextMap.put(ConstantsDataKey.ANDROID_PKG_CONTENT, "");
+        if (pushMessageDTO.getData() != null)
+        {
+            contextMap.put(ConstantsDataKey.ANDROID_CUSTOM_CONTENT, pushMessageDTO.getData());
+        }
+        contextMap.put(ConstantsDataKey.DATA_KEY_DESCRIPTION, pushMessageDTO.getDescription());
+        pushMessage(pushMessageDTO.getCustomerId(), contextMap);
+    }
+
+    @Override
+    public boolean match(String tag, String topic, String bizKey)
+    {
+        log.info("recieve kafka message tag : {}", tag);
+        return MessageEventType.PUSH_2_SINGLE.getCode().equals(tag);
+    }
+
+    @Override
+    public void process(String tag, String bizKey, PushMessageDTO pushMessageDTO)
+    {
+        // 首先检查是否是重复消费
+        String key = caclKey(pushMessageDTO, bizKey);
+        if (isRepeatConsume(key))
+        {
+            log.warn("Push2SingleProcesser:推送的重复消费，requestLogDTO:{},bizKey:{},key:{}", JSONObject.toJSONString(pushMessageDTO), bizKey, key);
+            return;
+        }
+        process(pushMessageDTO);
+    }
+
+}

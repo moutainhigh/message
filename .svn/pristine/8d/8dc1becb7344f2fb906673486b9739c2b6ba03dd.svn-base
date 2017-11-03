@@ -1,0 +1,61 @@
+package com.zhongan.icare.message.push.web;
+
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.icare.common.client.ClientInfo;
+import com.zhongan.icare.message.push.service.IPushBaiduChannelService;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.message.dto.PushBaiduChannelDTO;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+
+@RestController
+@RequestMapping(value = "/v2/deviceInfo")
+@Slf4j
+public class PushDeviceInfoController extends MessageBaseController{
+
+    @Resource
+    private IPushBaiduChannelService                pushBaiduChannelService;
+
+
+    @RequestMapping(value = "/updateDevice", method = RequestMethod.GET)
+    public BaseResult<Void> updateDevice(@RequestParam Integer deviceType, @RequestParam String channelId) {
+        BaseResult<Void> result = new BaseResult<Void>();
+        log.info("deviceType : {}, channelId : {}", deviceType, channelId);
+        try {
+            // 检查client信息
+            ClientInfo client = loadClientInfo(result);
+            if (client == null) {
+                return result;
+            }
+            // 检查设备信息
+            if(!checkDeviceInfo(result,deviceType,channelId)){
+                return result;
+            }
+
+            // 检查当前会员
+            if(!checkCustomerInfo(result,client.getCustId())){
+                return result;
+            }
+
+            // 保存推送设备信息
+            PushBaiduChannelDTO baiduChannelDTO = new PushBaiduChannelDTO();
+            baiduChannelDTO.setCustomerId(client.getCustId());
+            baiduChannelDTO.setChannelId(channelId);
+            baiduChannelDTO.setDeviceType(deviceType);
+            Boolean execResult = pushBaiduChannelService.saveOrUpdateDevice(baiduChannelDTO);
+            if(execResult){
+                result.setCodeSuccess();
+            }
+        } catch (Exception e) {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.MSG_UPDATE_DEVICE_EXCEPTION, deviceType, channelId);
+            log.error("", e);
+        }
+        return result;
+    }
+}

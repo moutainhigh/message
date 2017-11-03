@@ -1,0 +1,45 @@
+2017-03-08 09:48:32,604 [main] INFO  [org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor] [AutowiredAnnotationBeanPostProcessor.java:153]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2017-03-08 09:48:32,696 [main] INFO  [org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker] [PostProcessorRegistrationDelegate.java:328]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Bean 'configurationPropertiesRebinderAutoConfiguration' of type [class org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration$$EnhancerBySpringCGLIB$$34e56c54] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2017-03-08 09:48:34,074 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:73]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Fetching config from server at: http://msc.zhonganonline.com:8888
+2017-03-08 09:48:35,398 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:83]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located environment: name=icare-message, profiles=[default], label=dev, version=19735
+2017-03-08 09:48:35,399 [main] INFO  [org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration] [PropertySourceBootstrapConfiguration.java:93]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located property source: CompositePropertySource [name='configService', propertySources=[MapPropertySource [name='http://10.253.101.99:8888/repos/zis/microservices/app/config/file:/alidata1/admin/confignew/dev/icare-message.yml']]]
+2017-03-08 09:59:05,912 [main] INFO  [org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor] [AutowiredAnnotationBeanPostProcessor.java:153]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2017-03-08 09:59:06,002 [main] INFO  [org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker] [PostProcessorRegistrationDelegate.java:328]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Bean 'configurationPropertiesRebinderAutoConfiguration' of type [class org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration$$EnhancerBySpringCGLIB$$88b65e61] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2017-03-08 09:59:07,287 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:73]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Fetching config from server at: http://msc.zhonganonline.com:8888
+2017-03-08 09:59:09,521 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:83]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located environment: name=icare-message, profiles=[default], label=dev, version=19739
+2017-03-08 09:59:09,522 [main] INFO  [org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration] [PropertySourceBootstrapConfiguration.java:93]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located property source: CompositePropertySource [name='configService', propertySources=[MapPropertySource [name='http://10.253.101.99:8888/repos/zis/microservices/app/config/file:/alidata1/admin/confignew/dev/icare-message.yml']]]
+2017-03-08 10:29:06,575 [main] INFO  [org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor] [AutowiredAnnotationBeanPostProcessor.java:153]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2017-03-08 10:29:06,617 [main] INFO  [org.springframework.context.support.PostProcessorRegistrationDelegate$BeanPostProcessorChecker] [PostProcessorRegistrationDelegate.java:328]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Bean 'configurationPropertiesRebinderAutoConfiguration' of type [class org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration$$EnhancerBySpringCGLIB$$1ecc2624] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2017-03-08 10:29:08,179 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:73]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Fetching config from server at: http://msc.zhonganonline.com:8888
+2017-03-08 10:29:09,428 [main] INFO  [org.springframework.cloud.config.client.ConfigServicePropertySourceLocator] [ConfigServicePropertySourceLocator.java:83]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located environment: name=icare-message, profiles=[default], label=dev, version=19745
+2017-03-08 10:29:09,429 [main] INFO  [org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration] [PropertySourceBootstrapConfiguration.java:93]
+                [trace=,span=,parent=,name=,app=,begintime=,endtime=]
+                - Located property source: CompositePropertySource [name='configService', propertySources=[MapPropertySource [name='http://10.253.101.99:8888/repos/zis/microservices/app/config/file:/alidata1/admin/confignew/dev/icare-message.yml']]]

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="GB2312"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans default-autowire="byName">
+    <bean class="com.zhongan.health.common.message.kafka.KafkaConfig" name="messageConfig">
+        <property name="server" value="${za.icare.message.push.server}"/>
+        <property name="producerId" value="${za.icare.message.push.producerId}"/>
+        <property name="consumerId" value="${za.icare.message.push.consumerId}"/>
+        <property name="topics" value="${za.icare.message.push.topics}"/>
+    </bean>
+
+    <bean class="com.zhongan.health.common.message.kafka.KafkaConfig" name="sendMessageConfig">
+        <property name="server" value="${za.icare.message.push.server}"/>
+        <property name="producerId" value="${za.icare.message.push.producerId}"/>
+        <property name="consumerId" value="${za.icare.message.push.consumerIdNew}"/>
+        <property name="topics" value="${za.icare.message.push.sendToipcs}"/>
+    </bean>
+
+
+    <bean id="kafkaSenderNewId" class="com.zhongan.health.common.message.kafka.producer.KafkaSender" init-method="init"
+          destroy-method="close"
+          name="cashierSenderNew">
+        <property name="config" ref="sendMessageConfig"/>
+    </bean>
+
+    <bean id="messageHandlerNewId" class="com.zhongan.icare.common.mq.handler.MatchJsonMessageHandler"
+          init-method="init" destroy-method="close">
+        <property name="config" ref="sendMessageConfig"/>
+    </bean>
+
+
+    <bean id="kafkaSenderId" class="com.zhongan.health.common.message.kafka.producer.KafkaSender" init-method="init"
+          destroy-method="close"
+          name="cashierSender">
+        <property name="config" ref="messageConfig"/>
+    </bean>
+
+    <bean id="messageHandlerId" class="com.zhongan.icare.common.mq.handler.MatchJsonMessageHandler" init-method="init"
+          destroy-method="close">
+        <property name="config" ref="messageConfig"/>
+    </bean>
+
+
+    <!-- <bean class="com.zhongan.icare.message.push.mq.handler.LoginMessageProcesser" />  -->
+    <bean class="com.zhongan.icare.message.push.mq.handler.RegisterMessageProcesser"/>
+    <bean class="com.zhongan.icare.message.push.mq.handler.PushMessageProcesser"/>
+    <bean class="com.zhongan.icare.message.push.mq.handler.Message2SingleProcesser"/>
+    <bean class="com.zhongan.icare.message.push.mq.handler.Message2MultiProcesser"/>
+    <bean class="com.zhongan.icare.message.push.mq.handler.Message2AllProcesser"/>
+    <bean class="com.zhongan.icare.message.push.mq.handler.MessageMulti2MultiProcesser"/>
+</beans>

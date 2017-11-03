@@ -1,0 +1,56 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: tQXhFbWPoPXYrzAkP39j7GUD
+    secretKey: qtQaMkYAwmdbV99hxvoLPmH9bXCq653B
+  ios: 
+    apiKey: LOORrdIm5FHN2oePthaKDQlZ
+    secretKey: fmjaGwKb7XafaGhzzxCDXGhCjSROKA8l
+    status: 1
+    
+tddl: 
+  appname: ICARE_MESSAGE_PRE_APP
+  groupname: ICARE_MESSAGE_PRE_00_GROUP
+  
+sky:
+  star:
+    url: "http://10.139.106.139:8080/com.zhongan.pigeon.service.MessageSendService:1.0.0/" 
+     
+za: 
+  icare: 
+    message: 
+      push: 
+        consumerId: icare-message_prd-create
+        producerId: icare-message-create
+        server: "10.139.97.165:9092"
+        topics: "pre-icare-customer-all,pre-icare-message-all"
+        sendToipcs: "icare-message"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+    redis: 
+      configserver1: "typhon-uat-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+    oss:
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      endpoint: http://oss-cn-hzjbp-a-internal.aliyuncs.com
+      bucketName: wujieshan-new
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

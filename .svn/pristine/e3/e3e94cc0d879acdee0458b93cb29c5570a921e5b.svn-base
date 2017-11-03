@@ -1,0 +1,242 @@
+package com.zhongan.icare.message.push.mq.handler;
+
+import com.google.gson.Gson;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.icare.common.mq.handler.MatchProcessor;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushDetailDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushRelDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushTagDO;
+import com.zhongan.icare.message.push.enums.IsDeleteEnum;
+import com.zhongan.icare.message.push.enums.MsgStatusEnum;
+import com.zhongan.icare.message.push.service.*;
+import com.zhongan.icare.share.message.dto.MsgPushDTO;
+import com.zhongan.icare.share.message.enm.MessageEventType;
+import com.zhongan.icare.share.message.enm.MsgTypeEnum;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+
+@Slf4j
+public class PushMessageProcesser implements MatchProcessor<MsgPushDTO>
+{
+    @Resource
+    private IMsgPushRelService msgPushRelService;
+    @Resource
+    private IMsgPushTagService msgPushTagService;
+    @Resource
+    private IMsgPushDetailService msgPushDetailService;
+    @Autowired
+    private ExecutorService threadPool;
+    @Resource
+    private IMsgPushService msgPushService;
+    @Resource
+    private IBaiduPushService baiduPushService;
+
+    @Override
+    public void process(String tag, String bizKey, MsgPushDTO msgPushDTO)
+    {
+        process(msgPushDTO);
+    }
+
+    @Override
+    public String name()
+    {
+        return MessageEventType.MESSAGE_PUSH_EVENT.getCode();
+    }
+
+    @Override
+    public void process(MsgPushDTO msgPushDTO)
+    {
+        try
+        {
+            log.info("receive message push , detail info : {}", new Gson().toJson(msgPushDTO));
+
+            MsgPushDO msgPushDO = BeanUtils.simpleDOAndBOConvert(msgPushDTO, MsgPushDO.class);
+            MsgTypeEnum msgType = msgPushDTO.getMessageType();
+            if (msgType == MsgTypeEnum.SINGLE && msgPushDTO.getTargetCustId() != null
+                    && msgPushDTO.getTargetCustId() != 0L)
+            {
+                pushMsgToSingle(msgPushDO, msgPushDTO.getTargetCustId());
+            } else if (msgType == MsgTypeEnum.GROUP)
+            {
+                pushMsgByTag(msgPushDO);
+            } else if (msgType == MsgTypeEnum.ALL)
+            {
+                pushMsgToAll(msgPushDO);
+            }
+        } catch (Exception e)
+        {
+            log.error("", e);
+        }
+
+    }
+
+    @Override
+    public boolean match(String tag, String topic, String bizKey)
+    {
+        return MessageEventType.MESSAGE_PUSH_EVENT.getCode().equals(tag);
+    }
+
+    private void pushMsgToAll(MsgPushDO msgPushDO)
+    {
+        MsgPushTagDO tagDO = queryTagName(msgPushDO.getCustId());
+        if (tagDO == null)
+        {
+            return;
+        }
+
+        msgPushDO.setTagName(tagDO.getTagName());
+        saveAllPushMsg(msgPushDO);
+        baiduPushService.pushMsgToAll(msgPushDO);
+    }
+
+    private void pushMsgToSingle(MsgPushDO msgPushDO, Long targetCustId)
+    {
+        MsgPushRelDO rel = msgPushRelService.queryCustDeviceByCustId(targetCustId);
+        if (rel == null)
+        {
+            log.warn("can't find baidu push device info by custId : {}", targetCustId);
+            return;
+        }
+
+        MsgPushTagDO tagDO = queryTagName(msgPushDO.getCustId());
+        if (tagDO == null)
+        {
+            return;
+        }
+        msgPushDO.setTagName(tagDO.getTagName());
+        msgPushDO.setMessageIcon(tagDO.getTagIcon());
+        savePushMsg(msgPushDO, targetCustId);
+        baiduPushService.pushMsgToSingleDevice(rel.getChannelId(), rel.getDeviceType(), msgPushDO);
+    }
+
+    private void pushMsgByTag(final MsgPushDO msgPushDO)
+    {
+        MsgPushTagDO tagDO = queryTagName(msgPushDO.getCustId());
+        if (tagDO == null)
+        {
+            return;
+        }
+        MsgPushRelDO relDO = new MsgPushRelDO();
+        relDO.setOrgId(tagDO.getOrgId());
+        relDO.setIsDeleted(IsDeleteEnum.NO.getValue());
+        final List<MsgPushRelDO> list = msgPushRelService.queryCustDevices(relDO);
+        if (list == null || list.isEmpty())
+        {
+            log.warn("no device info by orgId : {}", tagDO.getOrgId());
+            return;
+        }
+
+        msgPushDO.setTagName(tagDO.getTagName());
+        threadPool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                saveMsgByTag(list, msgPushDO);
+            }
+
+        });
+        log.info("push msg by tagName : {}, push msg : {}", tagDO.getTagName(), new Gson().toJson(msgPushDO));
+        baiduPushService.pushMsgByTag(msgPushDO, tagDO.getTagName());
+    }
+
+    private MsgPushTagDO queryTagName(Long custId)
+    {
+
+        List<MsgPushTagDO> tags = msgPushTagService.queryPushTagsByOrgId(custId);
+        if (tags != null && !tags.isEmpty())
+        {
+            return tags.get(0);
+        } else
+        {
+            log.warn("can't find message tag info by orgId : {}", custId);
+            return null;
+        }
+
+    }
+
+    private void savePushMsg(final MsgPushDO msgPush, final Long custId)
+    {
+        threadPool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                msgPushService.addMsgPush(msgPush);
+                MsgPushDetailDO detail = new MsgPushDetailDO();
+                detail.setCustId(custId);
+                detail.setMessageType(msgPush.getMessageType());
+                detail.setMessageDetail(msgPush.getMessageDetail());
+                detail.setMessageTitle(msgPush.getMessageTitle());
+                detail.setMessageLayout(msgPush.getMessageLayout());
+                detail.setMessageIcon(msgPush.getMessageIcon());
+                detail.setMessageStatus(MsgStatusEnum.UNREAD.getCode());
+                detail.setTagName(msgPush.getTagName());
+                msgPushDetailService.addMsgPushDetail(detail);
+            }
+        });
+    }
+
+    private void saveMsgByTag(List<MsgPushRelDO> rels, MsgPushDO msgPush)
+    {
+        msgPushService.addMsgPush(msgPush);
+        List<MsgPushDetailDO> details = new ArrayList<MsgPushDetailDO>();
+        for (MsgPushRelDO rel : rels)
+        {
+            MsgPushDetailDO detail = new MsgPushDetailDO();
+            detail.setCustId(rel.getCustId());
+            detail.setMessageDetail(msgPush.getMessageDetail());
+            detail.setMessageLayout(msgPush.getMessageLayout());
+            detail.setMessageStatus(MsgStatusEnum.UNREAD.getCode());
+            detail.setMessageTitle(msgPush.getMessageTitle());
+            detail.setMessageType(msgPush.getMessageType());
+            detail.setTagName(msgPush.getTagName());
+            detail.setMessageIcon(msgPush.getMessageIcon());
+            details.add(detail);
+        }
+        msgPushDetailService.addMsgPushDetails(details);
+    }
+
+    private void saveAllPushMsg(final MsgPushDO msgPush)
+    {
+        threadPool.execute(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                msgPushService.addMsgPush(msgPush);
+                MsgPushRelDO relDO = new MsgPushRelDO();
+                relDO.setIsDeleted(IsDeleteEnum.NO.getValue());
+                final List<MsgPushRelDO> list = msgPushRelService.queryCustDevices(relDO);
+                if (list == null || list.isEmpty())
+                {
+                    log.warn("no device info query from msgPushRel table");
+                    return;
+                }
+                List<MsgPushDetailDO> msgs = new ArrayList<MsgPushDetailDO>();
+                for (MsgPushRelDO tempRel : list)
+                {
+                    MsgPushDetailDO tempDO = new MsgPushDetailDO();
+                    tempDO.setMessageDetail(msgPush.getMessageDetail());
+                    tempDO.setMessageTitle(msgPush.getMessageTitle());
+                    tempDO.setMessageLayout(msgPush.getMessageLayout());
+                    tempDO.setMessageType(msgPush.getMessageType());
+                    tempDO.setMessageStatus(MsgStatusEnum.UNREAD.getCode());
+                    tempDO.setCustId(tempRel.getCustId());
+                    tempDO.setTagName(msgPush.getTagName());
+                    tempDO.setMessageIcon(msgPush.getMessageIcon());
+                    msgs.add(tempDO);
+                }
+                msgPushDetailService.addMsgPushDetails(msgs);
+            }
+        });
+
+    }
+
+}

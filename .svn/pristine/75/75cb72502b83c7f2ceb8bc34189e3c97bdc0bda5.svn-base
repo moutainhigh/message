@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="GB2312"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans>
+    <bean id="redisManager" class="com.zhongan.Bean.TyphonManager">
+        <constructor-arg value="${za.icare.redis.configserver1}"/>
+    </bean>
+    <bean id="onlineRedis" class="com.zhongan.health.common.cache.redis.OnlineRedis">
+        <property name="redisManager" ref="redisManager"/>
+        <property name="nameSpace" value="3"/>
+    </bean>
+    <bean class="org.apache.commons.pool2.impl.GenericObjectPoolConfig"
+          name="redisPoolConfig">
+        <property name="maxIdle" value="${za.icare.redis.pool.maxIdle}"/>
+        <property name="maxTotal" value="${za.icare.redis.pool.maxTotal}"/>
+    </bean>
+    <bean class="com.zhongan.icare.common.util.SpringUtils"
+          factory-method="splitToSet" name="redisHosts">
+        <constructor-arg value="${za.icare.redis.hosts}"/>
+    </bean>
+    <bean class="redis.clients.jedis.JedisSentinelPool" name="jedisPool" destroy-method="close">
+        <constructor-arg value="${za.icare.redis.master}"
+                         index="0" type="java.lang.String"/>
+        <constructor-arg ref="redisHosts" index="1"
+                         type="java.util.Set"/>
+        <constructor-arg ref="redisPoolConfig" index="2"
+                         type="org.apache.commons.pool2.impl.GenericObjectPoolConfig"/>
+        <constructor-arg value="2000" index="3" type="int"/>
+    </bean>
+    <bean class="com.zhongan.icare.common.cache.redis.client.common.JedisFacade">
+        <constructor-arg index="0" ref="jedisPool"
+                         type="redis.clients.util.Pool"/>
+    </bean>
+</beans>

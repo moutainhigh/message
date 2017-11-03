@@ -1,0 +1,139 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import javax.annotation.Resource;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.google.gson.Gson;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.icare.message.push.dao.MsgPushRelDAO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushRelDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushTagDO;
+import com.zhongan.icare.message.push.enums.IsDeleteEnum;
+import com.zhongan.icare.message.push.service.IBaiduPushService;
+import com.zhongan.icare.message.push.service.IMsgPushCustTagService;
+import com.zhongan.icare.message.push.service.IMsgPushRelService;
+
+@Service
+@Slf4j
+@RestController
+@RequestMapping(value = "/pushRel")
+public class MsgPushRelServiceImpl implements IMsgPushRelService {
+    @Resource
+    private MsgPushRelDAO          custMsgPushRelDAO;
+    @Resource
+    private IBaiduPushService      baiduPushService;
+    @Resource
+    private IMsgPushCustTagService msgPushCustTagService;
+    private ExecutorService        pool = Executors.newCachedThreadPool();
+
+    @RequestMapping(value = "/addDevice", method = RequestMethod.POST)
+    @Override
+    public void saveOrUpdateDevice(@RequestBody MsgPushRelDO custMsgPushRelDO) {
+        try {
+            MsgPushRelDO _relDO = new MsgPushRelDO();
+            _relDO.setCustId(custMsgPushRelDO.getCustId());
+            _relDO.setIsDeleted("N");
+            List<MsgPushRelDO> list = custMsgPushRelDAO.selectByCond(_relDO);
+            if (list != null && list.size() > 0) {
+                MsgPushRelDO resDO = list.get(0);
+                if (!resDO.getChannelId().equals(custMsgPushRelDO.getChannelId())
+                        || resDO.getDeviceType().intValue() != custMsgPushRelDO.getDeviceType().intValue()) {
+                    custMsgPushRelDO.setId(resDO.getId());
+                    custMsgPushRelDO.setGmtModified(new Date());
+                    log.info("更新消息推送的账户设备信息:{}", new Gson().toJson(custMsgPushRelDO));
+                    custMsgPushRelDAO.updateByPrimaryKeySelective(custMsgPushRelDO);
+                    updateBaiduTagDevice(custMsgPushRelDO.getCustId(), resDO.getChannelId(),
+                            custMsgPushRelDO.getChannelId(), resDO.getDeviceType(), custMsgPushRelDO.getDeviceType());
+                }
+            } else {
+
+                Long id = SequenceFactory.nextId(MsgPushRelDO.class);
+                custMsgPushRelDO.setId(id);
+                custMsgPushRelDO.setGmtCreated(new Date());
+                custMsgPushRelDO.setCreator("system");
+                custMsgPushRelDO.setModifier("system");
+                custMsgPushRelDO.setIsDeleted(IsDeleteEnum.NO.getValue());
+                custMsgPushRelDO.setGmtModified(new Date());
+                log.info("保存消息推送账户设备信息:{}", new Gson().toJson(custMsgPushRelDO));
+                custMsgPushRelDAO.insert(custMsgPushRelDO);
+                addDeviceToTags(custMsgPushRelDO.getCustId(), custMsgPushRelDO.getChannelId(),
+                        custMsgPushRelDO.getDeviceType());
+            }
+        } catch (Exception e) {
+            log.error("", e);
+        }
+    }
+
+    private void updateBaiduTagDevice(Long custId, final String oldChannelId, final String newChannelId,
+                                      final int oldDeviceType, final int newDeviceType) {
+        final List<MsgPushTagDO> list = msgPushCustTagService.queryCustTag(custId);
+        if (list != null && !list.isEmpty()) {
+            pool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (MsgPushTagDO tag : list) {
+                        log.info("delete baidu device from tag , [channelId: {},deviceType : {},tagName : {}] ",
+                                oldChannelId, oldDeviceType, tag.getTagName());
+                        baiduPushService.deleteDeviceFromTag(new String[] { oldChannelId }, tag.getTagName(),
+                                oldDeviceType);
+                        log.info("add baidu device to tag , [channelId: {},deviceType : {},tagName : {}] ",
+                                newChannelId, newDeviceType, tag.getTagName());
+                        baiduPushService.addDeviceToTag(new String[] { newChannelId }, tag.getTagName(), newDeviceType);
+                    }
+                }
+
+            });
+
+        }
+    }
+
+    private void addDeviceToTags(Long custId, final String channelId, final int deviceType) {
+        final List<MsgPushTagDO> list = msgPushCustTagService.queryCustTag(custId);
+        if (list != null && !list.isEmpty()) {
+            pool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (MsgPushTagDO tag : list) {
+                        log.info("add baidu device to tag , [channelId: {},deviceType : {},tagName : {}] ", channelId,
+                                deviceType, tag.getTagName());
+                        baiduPushService.addDeviceToTag(new String[] { channelId }, tag.getTagName(), deviceType);
+                    }
+                }
+
+            });
+        }
+    }
+
+    @RequestMapping(value = "/queryDeviceById", method = RequestMethod.GET)
+    @Override
+    public MsgPushRelDO queryCustDeviceByCustId(@RequestParam Long custId) {
+        MsgPushRelDO _do = new MsgPushRelDO();
+        _do.setCustId(custId);
+        _do.setIsDeleted(IsDeleteEnum.NO.getValue());
+        List<MsgPushRelDO> list = custMsgPushRelDAO.selectByCond(_do);
+        if (list != null && !list.isEmpty()) {
+            return list.get(0);
+        }
+        return null;
+    }
+
+    @RequestMapping(value = "/queryDevices", method = RequestMethod.POST)
+    @Override
+    public List<MsgPushRelDO> queryCustDevices(@RequestBody MsgPushRelDO pushRelDO) {
+        return custMsgPushRelDAO.selectByCond(pushRelDO);
+    }
+
+}

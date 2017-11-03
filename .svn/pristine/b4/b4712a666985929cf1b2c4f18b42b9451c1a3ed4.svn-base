@@ -1,0 +1,154 @@
+package com.zhongan.icare.message.star;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.annotation.PostConstruct;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.zhongan.health.common.share.bean.BaseResult;
+import com.zhongan.health.common.share.constants.CommonErrorCode;
+import com.zhongan.health.common.share.exception.ExceptionUtils;
+import com.zhongan.icare.share.common.constants.ErrorCode;
+import com.zhongan.icare.share.message.dto.star.MailDTO;
+
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 邮件REST API
+ * 
+ * @author lirong
+ * @date 2016-6-24
+ */
+@RestController
+@RequestMapping(path = "/v1/mail", consumes = { "application/json" })
+@Slf4j
+public class MailController {
+    @Autowired
+    private StarHttpTemplate    starHttpTemplate;
+    @Value("${mail.from}")
+    private String              defaultMailFrom;
+    @Value("${za.icare.oss.accessId}")
+    private String              ossAccessId;
+    @Value("${za.icare.oss.accessKey}")
+    private String              ossAccessKey;
+    @Value("${za.icare.oss.endpoint}")
+    private String              ossEndpoint;
+    @Value("${za.icare.oss.bucketName}")
+    private String              ossBucketName;
+
+    private Map<String, String> ossAccessData;
+
+    /**
+     * 发送邮件
+     */
+    @RequestMapping(method = RequestMethod.POST)
+    public BaseResult<Map<String, String>> sendMail(@RequestBody MailDTO mail) {
+        BaseResult<Map<String, String>> result = new BaseResult<>();
+        if (mail == null || StringUtils.isEmpty(mail.getToMails())
+                || (StringUtils.isEmpty(mail.getBodyHtml()) && StringUtils.isEmpty(mail.getTemplateNo()))
+                || StringUtils.isEmpty(mail.getTitle())) {
+            ExceptionUtils.setErrorInfo(result, ErrorCode.CMN_ILLEGAL_ARG, "收件人,邮件内容不能为空");
+        } else {
+            log.info("收到发送邮件请求: info={}", JSON.toJSONString(mail));
+
+            if (StringUtils.isEmpty(mail.getFromMail())) {
+                mail.setFromMail(defaultMailFrom);
+            }
+            // 调用满天星发送邮件
+            try {
+                //                Map<String, String> postData = new LinkedHashMap<String, String>();
+                Map<String, Object> mailMap = new LinkedHashMap<String, Object>();
+
+                Map<String, String> params = new HashMap<String, String>();
+                if (mail.getMessageParams() != null) {
+                    params.putAll(mail.getMessageParams());
+                }
+
+                mailMap.put("toMails", mail.getToMails());
+                mailMap.put("title", mail.getTitle());
+                if (StringUtils.isNotEmpty(mail.getTemplateNo())) {
+                    mailMap.put("templateNo", mail.getTemplateNo());
+                } else {
+                    mailMap.put("bodyHtml", mail.getBodyHtml());
+                }
+                mailMap.put("fromMail", mail.getFromMail());
+                mailMap.put("userName", "icare");
+                String[] attachements = mail.getMailAttachments();
+                if (attachements != null && attachements.length > 0) {
+                    params.putAll(ossAccessData);
+                    mailMap.put("attachment", attachements[0]);
+                }
+                mailMap.put("parameters", JSON.toJSONString(params));
+                //
+                //                Object[] obj = new Object[] { JSON.toJSONString(mailMap) };
+                //                Object[] type = new Object[] { "java.lang.String" };
+                //                postData.put("ArgsTypes", JSONObject.toJSONString(type));
+                //                postData.put("ArgsObjects", JSONObject.toJSONString(obj));
+
+                //                try {
+                //                    String content = "ArgsTypes=%5B%22java.lang.String%22%5D&ArgsObjects=%5B%22%7B%5C%22toMails%5C%22%3A%5C%22780454628%40qq.com%5C%22%2C%5C%22title%5C%22%3A%5C%22%E6%B3%A8%E5%86%8C%E6%88%90%E5%8A%9F%5C%22%2C%5C%22bodyHtml%5C%22%3A%5C%22%3C%21DOCTYPE+html%3E%5C%5Cn%3Chtml+lang%3D%5C%5C%5C%22en%5C%5C%5C%22%3E%5C%5Cn%3Chead%3E%5C%5Cn++%3Cmeta+charset%3D%5C%5C%5C%22UTF-8%5C%5C%5C%22%3E%5C%5Cn++%3Ctitle%3EDocument%3C%2Ftitle%3E%5C%5Cn%3C%2Fhead%3E%5C%5Cn%3Cbody%3E%5C%5Cn++%3Cdiv%3E%5C%5Cn++++%3Cdiv+style%3D%5C%5C%5C%22margin%3Aauto%3Bpadding-top%3A40px%3Bwidth%3A650px%3Bheight%3A586px%3Bbackground%3Aurl%28%27http%3A%2F%2Fimg.zuifuli.io%2Ficare-img%2Factivity%2Fedm%2Fpaper.png%27%29+no-repeat%3B%5C%5C%5C%22%3E%5C%5Cn++++++%3Cdiv+style%3D%5C%5C%5C%22margin-left%3A36px%3Bpadding-left%3A40px%3Bwidth%3A100px%3Bheight%3A33px%3Bline-height%3A33px%3Bfont-size%3A20px%3Bcolor%3A%23f15152%3Bbackground%3Aurl%28%27http%3A%2F%2Fimg.zuifuli.io%2Ficare-img%2Factivity%2Fedm%2Flogo.png%27%29+no-repeat%3B%5C%5C%5C%22%3E%E6%9C%80%E7%A6%8F%E5%88%A9%3C%2Fdiv%3E%5C%5Cn++++++%3Cdiv+style%3D%5C%5C%5C%22margin-top%3A50px%3Bmargin-left%3A90px%3Bfont-size%3A16px%3Bcolor%3A%236b6b6b%3B%5C%5C%5C%22%3E%5C%5Cn++++++++%3Cp%3E%E4%BA%B2%E7%88%B1%E7%9A%84%E7%94%A8%E6%88%B7%EF%BC%9A%3C%2Fp%3E%5C%5Cn++++++++%3Cp%3E%E6%82%A8%E5%A5%BD%EF%BC%81%E6%81%AD%E5%96%9C%E4%BD%A0%E5%B7%B2%E7%BB%8F%E6%88%90%E5%8A%9F%E6%B3%A8%E5%86%8C%E4%BA%86%E6%9C%80%E7%A6%8F%E5%88%A9%E5%95%86%E5%9F%8E%E3%80%82%3C%2Fp%3E%5C%5Cn++++++++%3Cp%3E%E8%AF%B7%E7%99%BB%E5%BD%95%E6%9C%80%E7%A6%8F%E5%88%A9%E5%AE%98%E7%BD%91%3Ca+href%3D%5C%5C%5C%22https%3A%2F%2Fwww.zuifuli.io%2F%5C%5C%5C%22+target%3D%5C%5C%5C%22_blank%5C%5C%5C%22+style%3D%5C%5C%5C%22color%3A%233d86e9%3Btext-decoration%3Anone%3B%5C%5C%5C%22%3Ehttps%3A%2F%2Fwww.zuifuli.io%2F%3C%2Fa%3E%3C%2Fp%3E%5C%5Cn++++++++%3Cbr%2F%3E%5C%5Cn++++++++%3Cp%3E%E6%82%A8%E7%9A%84%E8%B4%A6%E6%88%B7%EF%BC%9A%3Cspan+style%3D%5C%5C%5C%22color%3A%233d86e9%3B%5C%5C%5C%22%3E780454628%40qq.com%3C%2Fspan%3E%5C%5Cu00A0%5C%5Cu00A0%5C%5Cu00A0%5C%5Cu00A0%E5%88%9D%E5%A7%8B%E5%AF%86%E7%A0%81%EF%BC%9A%3Cspan+style%3D%5C%5C%5C%22color%3A%233d86e9%3B%5C%5C%5C%22%3Ep8xssz%3C%2Fspan%3E%3C%2Fp%3E%5C%5Cn++++++++%3Cp%3E%E8%AF%B7%E5%8F%8A%E6%97%B6%E4%BF%AE%E6%94%B9%E5%AF%86%E7%A0%81%E5%B9%B6%E5%A6%A5%E5%96%84%E4%BF%9D%E7%AE%A1%E5%AF%86%E7%A0%81%EF%BC%81%3C%2Fp%3E%5C%5Cn++++++%3C%2Fdiv%3E%5C%5Cn++++++%3Cdiv+style%3D%5C%5C%5C%22margin-left%3A450px%3Bwidth%3A182px%3Bheight%3A116px%3Bbackground%3Aurl%28%27http%3A%2F%2Fimg.zuifuli.io%2Ficare-img%2Factivity%2Fedm%2Fpostmark.png%27%29+no-repeat%3B%5C%5C%5C%22%3E%3C%2Fdiv%3E%5C%5Cn++++%3C%2Fdiv%3E%5C%5Cn++%3C%2Fdiv%3E%5C%5Cn%3C%2Fbody%3E%5C%5Cn%3C%2Fhtml%3E%5C%22%2C%5C%22fromMail%5C%22%3A%5C%22cs%40mailserver.zhongan.com%5C%22%2C%5C%22userName%5C%22%3A%5C%22icare%5C%22%2C%5C%22parameters%5C%22%3A%7B%7D%7D%22%5D";
+                //                    String contentStr = URLDecoder.decode(new String(content), "utf-8");
+                //                    String[] argsInfo = contentStr.split("&");
+                //                    String typesInfoStr = argsInfo[0].trim();
+                //                    String argsInfoStr = argsInfo[1].trim();
+                //
+                //                    String[] argsTypeKV = typesInfoStr.split("=");
+                //                    String[] argsObjectKV = argsInfoStr.split("=");
+                //
+                //                    String[] argsTypes = (String[]) JSON.parseObject(argsTypeKV[1], java.lang.String[].class);
+                //                    String[] argsObjectsStr = (String[]) JSON.parseObject(argsObjectKV[1], java.lang.String[].class);
+                //                    Object[] argsObjects = new Object[argsObjectsStr.length];
+                //                    for (int i = 0; i < argsTypes.length; i++) {
+                //                        argsObjects[i] = JSON.parseObject(argsObjectsStr[i], Class.forName(argsTypes[i]));
+                //                    }
+                //                } catch (Throwable t) {
+                //                    throw new RuntimeException(
+                //                            "Your content couldn't be parsed.Please make sure your content is ArgsTypes=[str1,str2...] & ArgsObjects=[obj1,obj2...]",
+                //                            t);
+                //                }
+                String response = starHttpTemplate.post4Hsf("sendEmail", new String[] { "java.lang.String" },
+                        new String[] { JSONObject.toJSONString(mailMap) });
+                //                String response = starHttpTemplate.postForm4Hsf("sendEmail", postData);
+                JSONObject responseJson = JSON.parseObject(response);
+                Boolean sendResult = responseJson.getBoolean("isSuccess");
+                if (sendResult) {
+                    log.info("发送邮件成功");
+                    result.setCodeSuccess();
+                    result.setMessage("发送邮件成功");
+                } else {
+                    log.info("发送邮件失败, response={}", response);
+                    String errorMessage = responseJson.getString("errorMessage");
+                    result.setCode(CommonErrorCode.CMN_THIRD_ERROR.getCode());
+                    result.setMessage("发送邮件失败，" + errorMessage);
+                }
+            } catch (Exception e) {
+                log.info("发送邮件失败", e);
+                result.setCode(CommonErrorCode.CMN_BUZ_ERROR.getCode());
+                result.setMessage("发送邮件失败，" + e.getMessage());
+            }
+
+        }
+
+        return result;
+    }
+
+    @PostConstruct
+    public void init() {
+        ossAccessData = new LinkedHashMap<>();
+        ossAccessData.put("accessId", ossAccessId);
+        ossAccessData.put("accessKey", ossAccessKey);
+        ossAccessData.put("endpoint", ossEndpoint);
+        ossAccessData.put("bucketName", ossBucketName);
+    }
+}

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.zhongan:module.artemis.base.constants:1.0.29">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/zhongan/module.artemis.base.constants/1.0.29/module.artemis.base.constants-1.0.29.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/zhongan/module.artemis.base.constants/1.0.29/module.artemis.base.constants-1.0.29-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/zhongan/module.artemis.base.constants/1.0.29/module.artemis.base.constants-1.0.29-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,0 +1,57 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+msg: 
+  android: 
+    apiKey: tQXhFbWPoPXYrzAkP39j7GUD
+    secretKey: qtQaMkYAwmdbV99hxvoLPmH9bXCq653B
+  ios: 
+    apiKey: LOORrdIm5FHN2oePthaKDQlZ
+    secretKey: fmjaGwKb7XafaGhzzxCDXGhCjSROKA8l
+    status: 2
+    
+tddl: 
+  appname: ICARE_MESSAGE_PRD_APP
+  groupname: ICARE_MESSAGE_PRD_00_GROUP
+
+sky:
+  star:
+    url: "http://sms.zhonganonline.com:12220/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+  
+za: 
+  icare: 
+    message: 
+      push: 
+        consumerId: icare-message_prd-create
+        producerId: icare-message-create
+        server: "10.253.14.76:9092,10.139.55.93:9092,10.253.9.178:9092,10.139.106.202:9092,10.253.9.154:9092"
+        topics: "prd-icare-customer-all,prd-icare-message-all"
+        sendToipcs: "prd-icare-message"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+    redis: 
+      configserver1: "typhon-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+    oss:
+      accessId: tnAgDf4Ua09A5V2y
+      accessKey: 5WX10hShhR2tRdzbue4IvZMpEjQsK8
+      endpoint: http://oss-cn-hzjbp-b-internal.aliyuncs.com
+      bucketName: icare-prd
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

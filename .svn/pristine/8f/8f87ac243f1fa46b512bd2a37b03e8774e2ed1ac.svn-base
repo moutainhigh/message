@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd"
+
+       default-autowire="byName">
+
+    <bean class="com.zhongan.health.common.utils.security.crypt.impl.SymmetricCipher" init-method="init"
+          id="senstiveCipher">
+        <property name="algorithm" value="AES"/>
+        <property name="seed" value="${customer.senstive.seed}"/>
+    </bean>
+
+</beans>

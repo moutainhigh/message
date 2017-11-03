@@ -1,0 +1,145 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.icare.message.push.dao.MsgPushCustTagDAO;
+import com.zhongan.icare.message.push.dao.MsgPushTagDAO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushCustTagDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushRelDO;
+import com.zhongan.icare.message.push.dao.dataobject.MsgPushTagDO;
+import com.zhongan.icare.message.push.enums.IsDeleteEnum;
+import com.zhongan.icare.message.push.service.IBaiduPushService;
+import com.zhongan.icare.message.push.service.IMsgPushCustTagService;
+import com.zhongan.icare.message.push.service.IMsgPushRelService;
+
+@Service
+@Slf4j
+@RestController
+@RequestMapping(value = "test/pushCustTag")
+public class MsgPushCustTagServiceImpl implements IMsgPushCustTagService {
+    @Resource
+    private MsgPushCustTagDAO  msgPushCustTagDAO;
+    @Resource
+    private MsgPushTagDAO      msgPushTagDAO;
+    @Resource
+    private IBaiduPushService  baiduPushService;
+    @Resource
+    private IMsgPushRelService msgPushRelService;
+
+    /**
+     * 查询该用户所在的推送组
+     */
+    @RequestMapping(value = "/queryTag", method = { RequestMethod.GET })
+    @Override
+    public List<MsgPushTagDO> queryCustTag(@RequestParam Long custId) {
+        List<MsgPushTagDO> list = new ArrayList<MsgPushTagDO>();
+        try {
+            MsgPushCustTagDO _do = new MsgPushCustTagDO();
+            _do.setCustId(custId);
+            _do.setIsDeleted(IsDeleteEnum.NO.getValue());
+            List<MsgPushCustTagDO> custTags = msgPushCustTagDAO.selectByCond(_do);
+            if (custTags != null && !custTags.isEmpty()) {
+                MsgPushTagDO tagDO = new MsgPushTagDO();
+                tagDO.setIsDeleted(IsDeleteEnum.NO.getValue());
+                List<MsgPushTagDO> res = msgPushTagDAO.selectByCond(tagDO);
+                if (res != null && !res.isEmpty()) {
+                    Map<Long, MsgPushTagDO> map = new HashMap<Long, MsgPushTagDO>();
+                    for (MsgPushTagDO _tag : res) {
+                        map.put(_tag.getId(), _tag);
+                    }
+                    for (MsgPushCustTagDO custTag : custTags) {
+                        MsgPushTagDO _tagDO = map.get(custTag.getTagId());
+                        list.add(_tagDO);
+                    }
+                }
+            } else {
+                log.warn("can't find cust_tag info by custId : {}", custId);
+            }
+        } catch (Exception e) {
+            log.error("", e);
+        }
+        return list;
+    }
+
+    /**
+     * 取消关注标签推送的消息
+     */
+    @RequestMapping(value = "/removeTag", method = RequestMethod.GET)
+    @Override
+    public void removeCustTagById(Long custId, Long tagId) {
+        try {
+            MsgPushTagDO tagDO = msgPushTagDAO.selectByPrimaryKey(tagId);
+            if (tagDO != null) {
+                MsgPushRelDO relDO = msgPushRelService.queryCustDeviceByCustId(custId);
+                if (relDO != null) {
+                    baiduPushService.deleteDeviceFromTag(new String[] { relDO.getChannelId() }, tagDO.getTagName(),
+                            relDO.getDeviceType());
+                }
+            }
+            MsgPushCustTagDO _do = new MsgPushCustTagDO();
+            _do.setCustId(custId);
+            _do.setTagId(tagId);
+            _do.setIsDeleted(IsDeleteEnum.NO.getValue());
+            List<MsgPushCustTagDO> list = msgPushCustTagDAO.selectByCond(_do);
+            if (list != null && !list.isEmpty()) {
+                MsgPushCustTagDO custTag = list.get(0);
+                custTag.setIsDeleted(IsDeleteEnum.YES.getValue());
+                msgPushCustTagDAO.updateByPrimaryKey(custTag);
+            }
+
+        } catch (Exception e) {
+            log.error("", e);
+        }
+    }
+
+    /**
+     * 增加指定组的用户
+     */
+    @RequestMapping(value = "/addCustTag", method = RequestMethod.GET)
+    @Override
+    public void addCustTag(@RequestParam Long custId, @RequestParam Long orgId) {
+        try {
+
+            MsgPushTagDO tagDO = new MsgPushTagDO();
+            tagDO.setOrgId(orgId);
+            tagDO.setIsDeleted(IsDeleteEnum.NO.getValue());
+            List<MsgPushTagDO> tags = msgPushTagDAO.selectByCond(tagDO);
+            MsgPushRelDO relDO = msgPushRelService.queryCustDeviceByCustId(custId);
+            if (tags != null && !tags.isEmpty() && relDO != null) {
+                MsgPushTagDO tag = tags.get(0);
+                baiduPushService.addDeviceToTag(new String[] { relDO.getChannelId() }, tag.getTagName(),
+                        relDO.getDeviceType());
+                MsgPushCustTagDO _do = new MsgPushCustTagDO();
+                long id = SequenceFactory.nextId(MsgPushCustTagDO.class);
+                _do.setId(id);
+                _do.setCustId(custId);
+                _do.setTagId(tag.getId());
+                _do.setIsDeleted(IsDeleteEnum.NO.getValue());
+                _do.setCreator("system");
+                _do.setGmtCreated(new Date());
+                _do.setModifier("system");
+                _do.setGmtModified(new Date());
+                msgPushCustTagDAO.insert(_do);
+            }
+
+        } catch (Exception e) {
+            log.error("", e);
+        }
+    }
+
+}

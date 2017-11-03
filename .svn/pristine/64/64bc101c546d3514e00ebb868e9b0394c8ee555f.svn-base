@@ -1,0 +1,98 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+  client:
+    serviceUrl:
+      defaultZone: http://11494-iyunbao-ifuli-icare-api.test.za.net/eureka/
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: g9DA8kvREgWPiGsKDUGtXfuF
+    secretKey: l5CxtkG8wnZrUQnkCESIdw25XSZ1kZSz
+  ios: 
+    apiKey: K6g8O2soPHjPytyrVRP27eTN
+    secretKey: gCWulMf33GsqGGQE3OTYNb2SE7krjpDx
+    status: 1
+    
+tddl: 
+  appname: ICARE_MESSAGE_TST_APP
+  groupname: ICARE_MESSAGE_TST_00_GROUP
+  path: /alidata1/admin/
+  
+verify: 
+  code: 
+    geetest: 
+      api_url: "http://api.geetest.com"
+      baseUrl: "http://api.geetest.com"
+      captcha_id: e14090c90e0b20d8464e1341611a9abd
+      expire_in_second: 120
+      private_key: 3bf21e90ab7c776ff2ca756864038a5d
+      version: "3.2.0"
+      
+sky:
+  star:
+    url: "http://10.139.36.106:3083/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+          
+za: 
+  icare: 
+    img: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+      publicEndpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/"
+      server: "http://oss-cn-hzjbp-a-internal.aliyuncs.com/wujieshan-new"
+    message: 
+      email: 
+        valid: 
+          minute: 21600
+      push: 
+        server: "10.139.52.49:9092,10.139.52.57:9092,10.139.52.45:9092,192.168.13.78:8082"
+        producerId: "icare-customer-create"
+        consumerId: "icare-message_test-create"
+        topics: "icare-customer,icare-message"
+        sendToipcs: "icare-message"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+      sms: 
+        individual: 
+          templateNo: SMS_16710057
+        valid: 
+          minute: 5
+        verify: 
+          templateNo: SMS_14250345
+    oss: 
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      bucketName: wujieshan-new
+      endpoint: "http://oss-cn-hzjbp-a-internal.aliyuncs.com"
+    redis: 
+      configserver1: "typhon-test-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+    sec: 
+      org: 
+        enterprise: 
+          id: 3
+    static: 
+      downPath: /api/customer/v1/attachement/download
+      filePath: "https://staticdaily.zhongan.com/website/health/ifuli/upload/"
+      ftpHost: "10.253.4.128"
+      ftpPassword: Static123
+      ftpPort: 22
+      ftpStaticDomain: staticdaily.zhongan.com
+      ftpTimeOut: 60000
+      ftpUserName: static
+      staticPath: /www/website/health/ifuli/upload/

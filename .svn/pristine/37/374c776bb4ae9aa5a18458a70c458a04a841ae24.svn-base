@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns="http://www.springframework.org/schema/beans" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+           http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+           "
+       default-autowire="byName">
+
+    <!-- 声明式事务 -->
+    <tx:annotation-driven transaction-manager="icareTransactionManager"
+                          proxy-target-class="true"/>
+
+    <!-- 分布式id-->
+    <bean class="com.zhongan.health.common.persistence.sequence.SnowflakeSequence" id="push_request_log">
+        <constructor-arg value="icare-message-node-id"/>
+    </bean>
+
+    <bean class="com.taobao.tddl.client.sequence.impl.DefaultSequenceDao" id="icare-message-node-id">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="step" value="1"/>
+    </bean>
+
+    <!-- mybatis sqlSessionFactory -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="configLocation"
+                  value="classpath:biz/mybatis/msg_sqlmap_config.xml"/>
+        <property name="dataSource" ref="dataSource"/>
+        <property name="typeAliasesPackage" value="com.zhongan.icare.customer.dao.dataobject"/>
+    </bean>
+
+    <bean id="sqlSessionTemplate" class="com.zhongan.icare.common.dao.mybatis.BatchSqlSessionTemplate"
+          scope="prototype">
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+    </bean>
+    <bean id="batchSqlSessionTemplate" class="com.zhongan.icare.common.dao.mybatis.BatchSqlSessionTemplate"
+          scope="prototype">
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+        <constructor-arg index="1" value="BATCH"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!-- ,分割 -->
+        <property name="basePackage" value="com.zhongan.icare.message.push.dao"/>
+        <property name="sqlSessionTemplateBeanName" value="sqlSessionTemplate"/>
+    </bean>
+
+
+    <bean class="com.zhongan.health.common.persistence.SequenceFactory" id="sequenceFactory"/>
+
+
+    <bean class="com.taobao.tddl.client.sequence.impl.DefaultSequenceDao" id="login_token">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="step" value="10000"/>
+    </bean>
+
+    <bean class="com.taobao.tddl.client.sequence.impl.DefaultSequenceDao" id="sequenceDao">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+
+    <!-- 事务 -->
+    <bean id="txManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- 配置事物的拦截方式 -->
+    <tx:advice id="transAdvice" transaction-manager="txManager">
+        <tx:attributes>
+            <tx:method name="delete*" propagation="REQUIRED"/>
+            <tx:method name="batch*" propagation="REQUIRED"/>
+            <tx:method name="insert*" propagation="REQUIRED"/>
+            <tx:method name="update*" propagation="REQUIRED"/>
+            <tx:method name="add*" propagation="REQUIRED"/>
+            <tx:method name="create*" propagation="REQUIRED"/>
+            <tx:method name="save*" propagation="REQUIRED"/>
+            <tx:method name="modify*" propagation="REQUIRED"/>
+            <tx:method name="execute*" propagation="REQUIRED"/>
+            <tx:method name="find*" propagation="SUPPORTS"/>
+            <tx:method name="get*" propagation="SUPPORTS"/>
+            <tx:method name="select*" propagation="SUPPORTS"/>
+            <tx:method name="query*" propagation="SUPPORTS"/>
+
+            <tx:method name="*" propagation="SUPPORTS"/>
+        </tx:attributes>
+    </tx:advice>
+    <!--
+    ensure that the above transactional advice runs for any execution of
+        an operation defined by the FooService interface
+         -->
+    <aop:config>
+        <aop:pointcut id="transcationPointcut"
+                      expression="execution( * com.zhongan.icare.message.push.service.impl..*Impl.*(..))"/>
+        <aop:advisor advice-ref="transAdvice" pointcut-ref="transcationPointcut"/>
+    </aop:config>
+
+
+</beans>

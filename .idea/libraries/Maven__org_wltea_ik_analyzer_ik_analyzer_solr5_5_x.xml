@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.wltea.ik-analyzer:ik-analyzer-solr5:5.x">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/wltea/ik-analyzer/ik-analyzer-solr5/5.x/ik-analyzer-solr5-5.x.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/wltea/ik-analyzer/ik-analyzer-solr5/5.x/ik-analyzer-solr5-5.x-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/wltea/ik-analyzer/ik-analyzer-solr5/5.x/ik-analyzer-solr5-5.x-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

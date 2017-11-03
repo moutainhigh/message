@@ -1,0 +1,79 @@
+server: 
+  port: 8080
+  
+eureka:
+  instance:
+    ipAddress: ${HOST_IP}
+    nonSecurePort: ${HOST_PORT_8080}
+    
+logging: 
+  path: /alidata1/admin/
+  levels: 
+    org.springframework.boot.env.PropertySourcesLoader: TRACE
+    org.springframework.cloud.config.server: DEBUG
+    
+msg: 
+  android: 
+    apiKey: tQXhFbWPoPXYrzAkP39j7GUD
+    secretKey: qtQaMkYAwmdbV99hxvoLPmH9bXCq653B
+  ios: 
+    apiKey: KebFUsAiZZtKVRhif0FEgpAw
+    secretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    newApiKey: KebFUsAiZZtKVRhif0FEgpAw
+    newSecretKey: BniOKGGLKaf6H17Kro7QRgHAPD4933d7
+    status: 1
+
+customer:
+  token:
+    privateKey: MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAOo64zbPK/AAxbX8jp0AyLJM5Yme3ACK3WAk6Ft7nkdvTrVfhnrfIt0wDx+e8aKFwr8E3SoMb1Bg0CYYxOiR7HzcEIe2xTKTzikG3ZaTXnW2VgZj94EA6k5XBA3HlDr8quc67L4XWyj253dv2TmcSfNPf9fxH185FJT6glnHObw5AgMBAAECgYBdH9yGRgfp++SfXjI1KcKhYQFBne9KJ+ur9gCLnrJnJFHeuoP1BhIObrUUlVTskNHEsGJd/WOkSVl4TBC9hobGus1mq7DkEcqQxqOm/49Yny7UMqljcHhuzSUM3HwIZ1aum1btRs6B1ZuT70Gkdz9wGEkZvrK54UyvbSdUW/euoQJBAPvJEzWvILLYP5D0X5d75YMDRmRV8X4HSGqux5yoo7muJ819kCGIGXdph2YnARCNtaiztfLqMUBz0U/+yE0c6r8CQQDuJpX6ImmR5wgGLU43y1/gP53zPGvPAxlcdRZdIwjOMl+EBEcOT3pafy4annSqghVVHszK6qlBRLd3Cw9Iee8HAkEA4Ib8tGDJXfLtLIxfOizoDB69hPgG9AX2k/vsUU0pQ4mEQQD5qI0/eHcIoRWjI2nbVud7F3W0Ge+t9hIT+IAS7QJAAcI/MU23weAW6xTCkx7pYlqV7AnyMeEv+sLSm3V6xysQEYWGkNB9ctWlnYS2D9xOFAbaNFVvUpATWsm2Hy7nWQJAddKR12lTGHlig+rlTjQ5rv5+iYx066PsSphJqs1jFziz8RWzg+gfeA/EcCMdcdtLshb2RclYsL+3NZUDbBj/Rg==
+    
+tddl: 
+  appname: ICARE_MESSAGE_PRE_APP
+  groupname: ICARE_MESSAGE_PRE_00_GROUP
+  
+sky:
+  star:
+    url: "http://10.139.106.139:8086/com.zhongan.pigeon.service.MessageSendService:1.0.0/"
+     
+za: 
+  icare: 
+    message: 
+      push: 
+        consumerId: icare-message_prd-create
+        consumerIdNew: icare-message_prd-create-new
+        producerId: icare-message-create
+        producerIdNew: icare-message-create-new
+        server: "10.139.97.165:9092"
+        topics: "pre-icare-message-all"
+        sendToipcs: "KS-ICARE-MESSAGE-170222"
+      processor:
+        toAllTemplateCode: "TEMPLATE_CODE"
+        countsByOneTime: 500
+        threadCount: 10
+    redis: 
+      configserver1: "typhon-uat-rest.zhonganonline.com"
+      nameSpace: 3
+      repeatConsumeExpireTime: 10
+      templateCodeExpire: 3600
+      groupAllExpire: 3600
+      templateAllExpire: 3600
+    oss:
+      accessId: N9S9RaY4r7P1z3Pt
+      accessKey: 2RrhBrL5Credn2RPIe2fEh8e2dPzw7
+      endpoint: http://oss-cn-hzjbp-a-internal.aliyuncs.com
+      bucketName: wujieshan-new
+jdbc:
+  initialSize: 1
+  maxActive: 8
+  minIdle: 1
+  maxWait: 5000
+  testOnBorrow: true
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 120000
+  validationQuery: "select 1 from dual"
+  poolPreparedStatements: false
+  maxPoolPreparedStatementPerConnectionSize: 20
+threadPool:
+  corePoolSize: 10
+  maximumPoolSize: 30

@@ -1,0 +1,60 @@
+package com.zhongan.icare.message.im.mq.handler;
+
+import com.alibaba.fastjson.JSON;
+import com.zhongan.icare.common.mq.handler.EqualMatchProcessor;
+import com.zhongan.icare.message.im.bean.ImAccount;
+import com.zhongan.icare.message.im.service.ImAccountService;
+import com.zhongan.icare.message.im.service.ImOrgGroupService;
+import com.zhongan.icare.share.customer.dto.CustCustomerDTO;
+import com.zhongan.icare.share.customer.dto.CustCustomerIndividualDTO;
+import com.zhongan.icare.share.customer.enm.CustEventType;
+import com.zhongan.icare.share.customer.service.ICustomerService;
+import lombok.extern.slf4j.Slf4j;
+
+import javax.annotation.Resource;
+
+/**
+ * Created by za-raozhikun on 2017/8/22.
+ */
+@Slf4j
+public class IndividualUpdateProcessor extends EqualMatchProcessor<CustCustomerIndividualDTO> {
+
+    @Resource
+    private ImAccountService imAccountService;
+
+    @Resource
+    private ICustomerService customerService;
+
+    @Resource
+    private ImOrgGroupService imOrgGroupService;
+
+    @Override
+    public String name() {
+        return CustEventType.CUSTOMER_INDIVIDUAL_UPDATE.getCode();
+    }
+
+    @Override
+    public void process(CustCustomerIndividualDTO custCustomerIndividualDTO) {
+        try {
+            log.info("Im Customer Get Message : id={}, name={}", custCustomerIndividualDTO.getId(), custCustomerIndividualDTO.getName());
+            long id = custCustomerIndividualDTO.getCustId();
+            CustCustomerDTO custCustomerDTO = customerService.queryCustomerByCustId(id);
+            String name = custCustomerDTO.getName();
+            String icon = custCustomerDTO.getCustIcon();
+            ImAccount imAccount = new ImAccount();
+            imAccount.setId(String.valueOf(id));
+            imAccount.setNickName(name);
+            imAccount.setFaceUrl(icon);
+            imAccountService.addImAccount(imAccount);
+            if (custCustomerDTO.getParentCustId() == null || custCustomerDTO.getParentCustId() == 0) {
+                imOrgGroupService.delOrgImGroupMember(String.valueOf(id));
+            } else {
+                imOrgGroupService.addOrgImGroupMember(String.valueOf(custCustomerDTO.getParentCustId()), String.valueOf(id), name);
+            }
+            log.info("Im Customer Update Message Processed : id={}", custCustomerDTO.getId());
+        } catch (Exception e) {
+            log.warn("Im Customer Update Message Processed Failed : cust={}, msg={}", JSON.toJSONString(custCustomerIndividualDTO), e.getMessage(), e);
+            throw e;
+        }
+    }
+}

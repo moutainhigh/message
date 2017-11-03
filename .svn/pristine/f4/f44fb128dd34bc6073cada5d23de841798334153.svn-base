@@ -1,0 +1,111 @@
+package com.zhongan.icare.message.push.service.impl;
+
+import com.google.common.base.Preconditions;
+import com.zhongan.health.common.persistence.CommonFieldUtils;
+import com.zhongan.health.common.persistence.SequenceFactory;
+import com.zhongan.health.common.utils.BeanUtils;
+import com.zhongan.icare.message.push.dao.PushSendLogDAO;
+import com.zhongan.icare.message.push.dao.dataobject.PushSendLogDO;
+import com.zhongan.icare.share.message.dto.PushSendLogDTO;
+import com.zhongan.icare.share.message.service.IPushSendLogService;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.annotation.Resource;
+import java.util.List;
+
+@Service
+@RestController
+class PushSendLogServiceImpl implements IPushSendLogService
+{
+    @Resource
+    PushSendLogDAO dao;
+
+    @Override
+    public long insert(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushSendLogDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insert(dataobject);
+        return id;
+    }
+
+    @Override
+    public long insertSelective(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "dto不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        Long id = dataobject.getId();
+        if (id == null)
+        {
+            id = SequenceFactory.nextId(PushSendLogDO.class);
+            dataobject.setId(id);
+        }
+        CommonFieldUtils.populate(dataobject, true);
+        dao.insertSelective(dataobject);
+        return id;
+    }
+
+    @Override
+    public int updateByPrimaryKey(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKey(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public int deleteByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "Id必须大于0");
+        int cnt = dao.deleteByPrimaryKey(id);
+        return cnt;
+    }
+
+    @Override
+    public int updateByPrimaryKeySelective(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null && dto.getId() != null, "Id不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        CommonFieldUtils.populate(dataobject, false);
+        int cnt = dao.updateByPrimaryKeySelective(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public List<PushSendLogDTO> selectByCond(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        List<PushSendLogDO> dataobjects = dao.selectByCond(dataobject);
+        return BeanUtils.simpleDOAndBOConvert(dataobjects, PushSendLogDTO.class, null);
+    }
+
+    @Override
+    public int countByCond(@RequestBody PushSendLogDTO dto)
+    {
+        Preconditions.checkArgument(dto != null, "查询条件不能为空.");
+        PushSendLogDO dataobject = BeanUtils.simpleDOAndBOConvert(dto, PushSendLogDO.class);
+        int cnt = dao.countByCond(dataobject);
+        return cnt;
+    }
+
+    @Override
+    public PushSendLogDTO selectByPrimaryKey(@RequestParam("id") long id)
+    {
+        Preconditions.checkArgument(id > 0, "id必须大于0");
+        PushSendLogDO dataobject = dao.selectByPrimaryKey(id);
+        return BeanUtils.simpleDOAndBOConvert(dataobject, PushSendLogDTO.class);
+    }
+}

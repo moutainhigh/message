@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="GB2312"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans default-autowire="byName">
+    <!--<bean id="redisManager" class="com.zhongan.Bean.TyphonManager">-->
+        <!--<constructor-arg value="${za.icare.redis.configserver1}"/>-->
+    <!--</bean>-->
+    <!--<bean id="onlineRedis" class="com.zhongan.health.common.cache.redis.OnlineRedis">-->
+        <!--<property name="redisManager" ref="redisManager"/>-->
+        <!--<property name="nameSpace" value="3"/>-->
+    <!--</bean>-->
+
+    <!--<bean id="newOnlineRedis" class="com.zhongan.icare.common.cache.redis.client.OnlineRedis">-->
+        <!--<property name="redisManager" ref="newRedisManager"/>-->
+        <!--<property name="nameSpace" value="3"/>-->
+    <!--</bean>-->
+    <!--<bean id="newRedisManager" class="com.zhongan.redis.impl.DefaultRedisManager"-->
+          <!--init-method="init">-->
+        <!--<constructor-arg-->
+                <!--value="${za.icare.redis.sentinelServers}"/>-->
+        <!--<constructor-arg value="master_3_1"/>-->
+        <!--<constructor-arg value="200"/>-->
+        <!--<constructor-arg value="20"/>-->
+        <!--<constructor-arg value="5"/>-->
+    <!--</bean>-->
+
+    <bean class="org.apache.commons.pool2.impl.GenericObjectPoolConfig" name="poolConfig">
+        <property name="maxIdle" value="${redis.pool.maxIdle}"/>
+        <property name="maxTotal" value="${redis.pool.maxTotal}"/>
+        <property name="maxWaitMillis" value="${redis.pool.maxWaitMillis}"/>
+        <property name="testOnBorrow" value="${redis.pool.testOnBorrow}"/>
+        <property name="testOnReturn" value="${redis.pool.testOnReturn}"/>
+    </bean>
+
+
+    <bean class="redis.clients.jedis.JedisSentinelPool" name="redisPool">
+        <constructor-arg value="${redis.master}"/>
+        <constructor-arg>
+            <bean class="com.zhongan.icare.common.util.SpringUtils"
+                  factory-method="splitToSet">
+                <constructor-arg value="${redis.sentinelServers}"/>
+            </bean>
+        </constructor-arg>
+        <constructor-arg ref="poolConfig"/>
+        <constructor-arg value="${redis.password}"/>
+    </bean>
+
+    <bean class="com.zhongan.icare.common.cache.redis.client.JedisTemplate" name="jedisTemplate">
+        <constructor-arg ref="redisPool"/>
+    </bean>
+</beans>
